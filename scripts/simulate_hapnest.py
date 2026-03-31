@@ -219,7 +219,7 @@ def run_hapnest(args, config_path: Path) -> None:
         cmd = [
             "singularity", "exec",
             "--no-home",
-            "--env", "JULIA_DEPOT_PATH=/tmp/julia_depot:/root/.julia",
+            "--env", f"JULIA_DEPOT_PATH=/tmp/julia_depot_{os.getpid()}:/root/.julia",
             "--env", "GKSwstype=nul",
             "--bind", f"{data_dir}:/data/",
             "--bind", f"{stub_eval}:/opt/intervene/scripts/evaluation/evaluation.jl",
