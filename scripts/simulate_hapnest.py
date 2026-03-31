@@ -210,6 +210,7 @@ def run_hapnest(args, config_path: Path) -> None:
     else:
         cmd = [
             "singularity", "exec",
+            "--no-home",
             "--bind", f"{data_dir}:/data/",
             args.hapnest_container,
             "generate_geno",
