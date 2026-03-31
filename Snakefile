@@ -275,10 +275,9 @@ rule pull_hapnest_container:
     output:
         sif = HAPNEST_CONTAINER,
     log: "logs/setup/pull_hapnest_container.log"
-    envmodules:
-        "singularity/3.8.7",
     shell:
         """
+        module load singularity/3.8.7
         mkdir -p $(dirname {output.sif})
         singularity pull {output.sif} docker://sophiewharrie/intervene-synthetic-data \
             2> {log}
@@ -308,10 +307,9 @@ rule simulate_hapnest:
     threads: 4
     resources:
         mem_mb = 8000,
-    envmodules:
-        "singularity/3.8.7",
     shell:
         """
+        module load singularity/3.8.7
         mkdir -p {params.outdir}
         python3 {input.script} \
             --chrom              {wildcards.chrom} \
@@ -409,11 +407,9 @@ rule extract_1kg_population:
         panel_ancestry = r"EUR_1kg|AFR_1kg|AMR_1kg",
     log: "logs/panels/extract_{panel_ancestry}.log"
     resources: mem_mb = 16000
-    envmodules:
-        "bcftools/1.19",
-        "plink/2.0-alpha",
     shell:
         """
+        module load bcftools/1.19 plink/2.0-alpha
         mkdir -p $(dirname {output.bed})
         TMP_VCF=$(mktemp --tmpdir=$(dirname {output.bed}) --suffix=.vcf.gz)
         # Subset to super-population samples, then convert to PLINK
@@ -446,10 +442,9 @@ rule filter_vcf:
         maf = MAF,
     log:
         "logs/filter/{sim_method}_rep{rep}_{cohort}_{chrom}.log",
-    envmodules:
-        "bcftools/1.19",
     shell:
         """
+        module load bcftools/1.19
         bcftools view \
             --min-af {params.maf}:minor \
             --max-alleles 2 \
@@ -481,11 +476,9 @@ rule merge_and_convert:
         "logs/merge_convert/{sim_method}_rep{rep}_{cohort}.log",
     resources:
         mem_mb = 4000,
-    envmodules:
-        "bcftools/1.19",
-        "plink/2.0-alpha",
     shell:
         """
+        module load bcftools/1.19 plink/2.0-alpha
         TMP_VCF=$(mktemp --suffix=.vcf.gz)
         bcftools concat --allow-overlaps {input.vcfs} --output-type z -o "$TMP_VCF" 2> {log}
         plink2 \
@@ -575,10 +568,9 @@ rule run_pca_gwas:
         n_pcs      = N_PCS,
     log: "logs/pca/{sim_method}_gwas_rep{rep}.log"
     resources: mem_mb = 4000
-    envmodules:
-        "plink/2.0-alpha",
     shell:
         """
+        module load plink/2.0-alpha
         mkdir -p $(dirname {output.eigenvec})
         plink2 \
             --bfile {params.bed_prefix} \
@@ -604,10 +596,9 @@ rule project_pca_test:
         score_prefix = "results/pca/{sim_method}/test/rep{rep}/pcs",
     log: "logs/pca/{sim_method}_test_rep{rep}.log"
     resources: mem_mb = 4000
-    envmodules:
-        "plink/2.0-alpha",
     shell:
         """
+        module load plink/2.0-alpha
         mkdir -p $(dirname {output.scores})
         plink2 \
             --bfile  {params.bed_prefix} \
@@ -637,10 +628,9 @@ rule run_gwas:
         "logs/gwas/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
         mem_mb = 4000,
-    envmodules:
-        "plink/2.0-alpha",
     shell:
         """
+        module load plink/2.0-alpha
         mkdir -p $(dirname {output.sumstats})
         plink2 \
             --bfile   {params.bed_prefix} \
@@ -787,10 +777,9 @@ rule score_test_set:
         "logs/score/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
         mem_mb = 4000,
-    envmodules:
-        "plink/2.0-alpha",
     shell:
         """
+        module load plink/2.0-alpha
         mkdir -p $(dirname {output.sscore})
         plink2 \
             --bfile   {params.bed_prefix} \
