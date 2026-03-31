@@ -211,6 +211,7 @@ def run_hapnest(args, config_path: Path) -> None:
         cmd = [
             "singularity", "exec",
             "--no-home",
+            "--env", "JULIA_DEPOT_PATH=/root/.julia",
             "--bind", f"{data_dir}:/data/",
             args.hapnest_container,
             "generate_geno",
