@@ -380,11 +380,14 @@ rule extract_1kg_population:
     wildcard_constraints:
         panel_ancestry = r"EUR_1kg|AFR_1kg|AMR_1kg",
     log: "logs/panels/extract_{panel_ancestry}.log"
-    resources: mem_mb = 8000
+    resources: mem_mb = 16000
+    envmodules:
+        "bcftools/1.19",
+        "plink/2.0-alpha",
     shell:
         """
         mkdir -p $(dirname {output.bed})
-        TMP_VCF=$(mktemp --suffix=.vcf.gz)
+        TMP_VCF=$(mktemp --tmpdir=$(dirname {output.bed}) --suffix=.vcf.gz)
         # Subset to super-population samples, then convert to PLINK
         bcftools concat --allow-overlaps {input.vcfs} --output-type u 2> {log} | \
         bcftools view --samples-file {input.ids} --output-type z -o "$TMP_VCF" 2>> {log}
@@ -415,6 +418,8 @@ rule filter_vcf:
         maf = MAF,
     log:
         "logs/filter/{sim_method}_rep{rep}_{cohort}_{chrom}.log",
+    envmodules:
+        "bcftools/1.19",
     shell:
         """
         bcftools view \
@@ -448,6 +453,9 @@ rule merge_and_convert:
         "logs/merge_convert/{sim_method}_rep{rep}_{cohort}.log",
     resources:
         mem_mb = 4000,
+    envmodules:
+        "bcftools/1.19",
+        "plink/2.0-alpha",
     shell:
         """
         TMP_VCF=$(mktemp --suffix=.vcf.gz)
@@ -539,6 +547,8 @@ rule run_pca_gwas:
         n_pcs      = N_PCS,
     log: "logs/pca/{sim_method}_gwas_rep{rep}.log"
     resources: mem_mb = 4000
+    envmodules:
+        "plink/2.0-alpha",
     shell:
         """
         mkdir -p $(dirname {output.eigenvec})
@@ -566,6 +576,8 @@ rule project_pca_test:
         score_prefix = "results/pca/{sim_method}/test/rep{rep}/pcs",
     log: "logs/pca/{sim_method}_test_rep{rep}.log"
     resources: mem_mb = 4000
+    envmodules:
+        "plink/2.0-alpha",
     shell:
         """
         mkdir -p $(dirname {output.scores})
@@ -597,6 +609,8 @@ rule run_gwas:
         "logs/gwas/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
         mem_mb = 4000,
+    envmodules:
+        "plink/2.0-alpha",
     shell:
         """
         mkdir -p $(dirname {output.sumstats})
@@ -745,6 +759,8 @@ rule score_test_set:
         "logs/score/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
         mem_mb = 4000,
+    envmodules:
+        "plink/2.0-alpha",
     shell:
         """
         mkdir -p $(dirname {output.sscore})

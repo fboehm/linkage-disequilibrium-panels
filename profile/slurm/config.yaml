@@ -48,7 +48,7 @@ set-resources:
 
   # 1KG population extraction — concatenates all 22 chromosomes
   extract_1kg_population:
-    mem_mb: 8000
+    mem_mb: 16000
     runtime: 480      # 8 h
 
   # LD reference computation — most memory-intensive step (SFBM build)

@@ -27,5 +27,6 @@ mkdir -p logs/slurm
 
 snakemake all_pgs \
     --profile profile/slurm \
+    --use-envmodules \
     --rerun-incomplete \
     --keep-going
