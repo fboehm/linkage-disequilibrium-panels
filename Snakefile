@@ -321,6 +321,22 @@ rule download_1kg_vcf:
         """
 
 
+# ── Step 1c-ii: Download 1KG sample panel file ────────────────────────────────
+
+rule download_1kg_panel:
+    """Download the 1KG Phase 3 integrated sample panel file (population assignments)."""
+    output:
+        panel = "resources/1kg/integrated_call_samples.panel",
+    params:
+        url = KG3_EBI_URL + "/integrated_call_samples_v3.20130502.ALL.panel",
+    log: "logs/download/1kg_panel.log"
+    shell:
+        """
+        mkdir -p resources/1kg
+        wget -q -O {output.panel} "{params.url}" 2> {log}
+        """
+
+
 # ── Step 1d: Write per-super-population sample ID lists ───────────────────────
 
 rule write_1kg_sample_ids:
