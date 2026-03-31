@@ -284,12 +284,42 @@ rule pull_hapnest_container:
         """
 
 
+# ── Step 1b-i.5: Fetch HAPNEST reference data ────────────────────────────────
+
+rule fetch_hapnest_data:
+    """Download 1KG+HGDP reference data into the HAPNEST data directory.
+
+    Must be run once before any simulate_hapnest jobs.  Creates a sentinel
+    file so Snakemake knows the download is complete.
+    """
+    input:
+        sif = HAPNEST_CONTAINER,
+    output:
+        sentinel = HAPNEST_DATA_DIR + "/inputs/.fetch_done",
+    log: "logs/setup/fetch_hapnest_data.log"
+    resources:
+        mem_mb  = 4000,
+        runtime = 480,   # 8 h — depends on network speed
+    shell:
+        """
+        module load singularity/3.8.7
+        singularity exec \
+            --no-home \
+            --bind {HAPNEST_DATA_DIR}:/data/ \
+            {input.sif} \
+            fetch \
+            > {log} 2>&1
+        touch {output.sentinel}
+        """
+
+
 # ── Step 1b-ii: Simulate genotypes with HAPNEST ───────────────────────────────
 
 rule simulate_hapnest:
     """Simulate genotypes using HAPNEST (LD-preserving haplotype copying from 1KG+HGDP)."""
     input:
         script    = "scripts/simulate_hapnest.py",
+        data_ready = HAPNEST_DATA_DIR + "/inputs/.fetch_done",
         **({} if HAPNEST_USE_DOCKER else {"container": HAPNEST_CONTAINER}),
     output:
         expand(
