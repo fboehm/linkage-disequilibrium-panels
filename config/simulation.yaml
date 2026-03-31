@@ -1,0 +1,184 @@
+# Simulation study configuration
+# --------------------------------
+# Chromosomes to simulate. Use a short list (e.g. [chr21, chr22]) for test runs.
+chromosomes:
+  - chr1
+  - chr2
+  - chr3
+  - chr4
+  - chr5
+  - chr6
+  - chr7
+  - chr8
+  - chr9
+  - chr10
+  - chr11
+  - chr12
+  - chr13
+  - chr14
+  - chr15
+  - chr16
+  - chr17
+  - chr18
+  - chr19
+  - chr20
+  - chr21
+  - chr22
+
+# Number of simulation replicates
+n_replicates: 2
+
+# Base random seed. Replicate k uses seed = base_seed + k.
+base_seed: 1000
+
+# Sample sizes (diploid individuals)
+n_gwas: 15000
+n_target: 5000
+n_panel_max: 10000
+
+# Minor allele frequency threshold applied when filtering VCFs
+maf_threshold: 0.01
+
+# Fraction of GWAS individuals to use as the training (discovery) set.
+# The remainder becomes the test (evaluation) set.
+train_frac: 0.80
+
+# Path to HapMap3 SNP positions (required for HAPGEN2 reference filtering).
+# Required columns (with header): chrom  pos
+#   chrom – integer chromosome number (no 'chr' prefix), e.g. 21
+#   pos   – 1-based GRCh37 position
+hapmap3_sites_file: "resources/hapmap3_sites.tsv"
+
+# ── Simulation methods ────────────────────────────────────────────────────────
+# Which genotype simulation methods to run.
+#   msprime – AmericanAdmixture_4B11 coalescent with HapMap3-anchored mutations
+#   hapgen2 – forward simulation from 1KG Phase 3 reference haplotypes
+#   hapnest – LD-preserving haplotype copying from 1KG+HGDP reference
+sim_methods:
+  - msprime
+
+# ── HAPNEST settings ──────────────────────────────────────────────────────────
+
+# Path to the HAPNEST Singularity container image.
+# Download with: singularity pull docker://sophiewharrie/intervene-synthetic-data
+hapnest_container: "sophiewharrie/intervene-synthetic-data"
+
+# Directory populated by: singularity exec ... fetch
+# Must contain inputs/raw/ and inputs/processed/ subdirectories.
+hapnest_data_dir: "resources/hapnest/data"
+
+# Superpopulation to use as the HAPNEST haplotype reference.
+# One of: AFR, AMR, EAS, EUR, CSA, MID
+# Three separate runs (AMR, EUR, AFR) are used to simulate the three
+# HAPNEST panel ancestries; this default is for the matched panel.
+hapnest_superpopulation: "AMR"
+
+# Set to true to run HAPNEST via Docker instead of Singularity.
+# Docker: docker run --rm -v {data_dir}:/data/ {image} generate_geno ...
+# Singularity: singularity exec --bind {data_dir}:/data/ {sif} generate_geno ...
+# Use true on Windows/WSL2 (Docker Desktop); false on Linux clusters (Singularity).
+hapnest_use_docker: true
+
+# ── HAPGEN2 / 1000 Genomes reference panel ────────────────────────────────────
+
+# Super-population to use as HAPGEN2 haplotype reference panel.
+# Options: AMR (MXL, PUR, CLM, PEL; n≈347)
+#          EUR (CEU, TSI, FIN, GBR, IBS; n≈503)
+#          AFR (YRI, LWK, GWD, MSL, ESN, ASW, ACB; n≈661)
+#          SAS (GIH, PJL, BEB, STU, ITU; n≈489)
+#          EAS (CHB, JPT, CHS, CDX, KHV; n≈504)
+ref_panel_population: "AMR"
+
+# Effective population size passed to HAPGEN2 via -Ne.
+hapgen2_ne: 11418
+
+# Base URL for 1KG Phase 3 genetic maps (Oxford stats server).
+# Genetic maps: {kg3_base_url}/genetic_map_chr{N}_combined_b37.txt
+# Note: the .haps.gz files were removed from this server; phased VCFs are
+# now downloaded from EBI FTP (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502).
+kg3_base_url: "https://mathgen.stats.ox.ac.uk/impute/1000GP_Phase3"
+
+# ── Panel size & ancestry parameters ─────────────────────────────────────────
+
+# Panel sizes (number of individuals) to evaluate.
+# matched_admixed panels support all sizes up to n_panel_max.
+# 1KG panels are limited by their super-population size (see panel_1kg_max).
+panel_sizes:
+  - 100
+  - 250
+  - 500
+  - 1000
+  - 2500
+  - 5000
+  - 10000
+
+# Panel ancestries to evaluate:
+#   matched_admixed – simulated admixed panel (same demographic model as GWAS)
+#   EUR_1kg         – 1000 Genomes EUR super-population (n≈503)
+#   AFR_1kg         – 1000 Genomes AFR super-population (n≈661)
+#   AMR_1kg         – 1000 Genomes AMR super-population (n≈347)
+#   oracle          – GWAS population used as its own LD reference (upper bound)
+panel_ancestries:
+  - matched_admixed
+  - EUR_1kg
+  - AFR_1kg
+  - AMR_1kg
+  - oracle
+
+# Maximum number of 1KG individuals available per super-population.
+# Any panel_size > panel_1kg_max[ancestry] is skipped automatically.
+panel_1kg_max:
+  EUR_1kg: 503
+  AFR_1kg: 661
+  AMR_1kg: 347
+
+# PGS methods to run.
+pgs_methods:
+  - ldpred2
+  - prscs
+
+# Number of PCs to include as GWAS covariates (and in the evaluation models).
+n_pcs: 10
+
+# EBI FTP base URL for 1KG Phase 3 phased VCFs.
+kg3_ebi_url: "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502"
+
+# ── Phenotype simulation parameters ──────────────────────────────────────────
+
+# SNP heritability levels (liability scale)
+h2_levels:
+  - 0.05
+  - 0.10
+  - 0.20
+  - 0.40
+
+# Proportion of causal SNPs
+#   Note: ignored when effect_dist == gaussian (infinitesimal model uses all SNPs)
+p_causal_levels:
+  - 0.001
+  - 0.01
+  - 0.05
+  - 0.20
+
+# Effect-size distributions
+#   gaussian   – infinitesimal: all p SNPs have N(0, h²/p) effects
+#   spikeslab  – sparse normal: p_causal fraction get N(0, h²/(p·p_causal)) effects
+#   scaledt    – sparse heavy-tailed: p_causal fraction get scaled-t(df=4) effects
+effect_dists:
+  - gaussian
+  - spikeslab
+  - scaledt
+
+# Trait configurations: label -> {type, prevalence}
+#   type       – quantitative | binary
+#   prevalence – used only for binary (liability-threshold model); null for quantitative
+trait_configs:
+  quantitative:
+    type: quantitative
+    prevalence: null
+  binary_prev10:
+    type: binary
+    prevalence: 0.10
+  binary_prev30:
+    type: binary
+    prevalence: 0.30

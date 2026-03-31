@@ -1,0 +1,9 @@
+.claude
+.snakemake
+results
+resources
+logs
+merged.pdf
+abstract.md
+simulation-analysis-plan.md
+

@@ -1,0 +1,66 @@
+# Snakemake 8 SLURM executor profile
+# ------------------------------------
+# Install the executor plugin first:
+#   pip install snakemake-executor-plugin-slurm
+#
+# Submit the workflow with:
+#   sbatch run_slurm.sh
+# or interactively:
+#   snakemake all_pgs --profile profile/slurm
+
+executor: slurm
+
+# Default resources applied to every job unless overridden below.
+default-resources:
+  slurm_partition: compute
+  mem_mb: 4000
+  runtime: 360        # minutes (6 h)
+  cpus_per_task: 1
+
+# Maximum simultaneous SLURM jobs submitted by Snakemake.
+jobs: 200
+
+# Seconds Snakemake waits for output files to appear on the shared filesystem.
+latency-wait: 60
+
+# Re-run any jobs whose output files are incomplete (e.g. from a cancelled run).
+rerun-incomplete: true
+
+# Per-rule resource overrides.
+# These supplement (or override) the resources already declared in the Snakefile.
+set-resources:
+  # Genotype simulation — memory-intensive coalescent over full genome
+  simulate_msprime:
+    mem_mb: 16000
+    runtime: 1440     # 24 h — 22 chromosomes × 2 cohorts
+
+  # HAPGEN2 simulation (if enabled)
+  simulate_hapgen2:
+    mem_mb: 8000
+    runtime: 480      # 8 h
+
+  # HAPNEST simulation (if enabled)
+  simulate_hapnest:
+    mem_mb: 8000
+    runtime: 480      # 8 h
+
+  # 1KG population extraction — concatenates all 22 chromosomes
+  extract_1kg_population:
+    mem_mb: 8000
+    runtime: 480      # 8 h
+
+  # LD reference computation — most memory-intensive step (SFBM build)
+  prepare_ldpred2_ref:
+    mem_mb: 32000
+    runtime: 720      # 12 h
+    cpus_per_task: 6
+
+  # GWAS — genome-wide linear/logistic regression
+  run_gwas:
+    mem_mb: 4000
+    runtime: 240      # 4 h
+
+  # PRS-CS weight computation
+  run_prscs:
+    mem_mb: 4000
+    runtime: 360      # 6 h
