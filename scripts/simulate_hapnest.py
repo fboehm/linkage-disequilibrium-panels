@@ -208,12 +208,21 @@ def run_hapnest(args, config_path: Path) -> None:
             config_in_container,
         ]
     else:
+        # Write a stub evaluation.jl that skips Plots/GR imports.
+        # run_program.jl always includes evaluation.jl even for generate_geno,
+        # which pulls in Plots → GR → libGR.so → fails on headless HPC nodes.
+        stub_eval = data_dir / "stub_evaluation.jl"
+        stub_eval.write_text(
+            "# stub: evaluation disabled for headless genotype generation\n"
+        )
+
         cmd = [
             "singularity", "exec",
             "--no-home",
             "--env", "JULIA_DEPOT_PATH=/tmp/julia_depot:/root/.julia",
             "--env", "GKSwstype=nul",
             "--bind", f"{data_dir}:/data/",
+            "--bind", f"{stub_eval}:/opt/intervene/scripts/evaluation/evaluation.jl",
             args.hapnest_container,
             "generate_geno",
             str(args.threads),
