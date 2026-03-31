@@ -111,7 +111,7 @@ def write_hapnest_config(args, config_path: Path, hapnest_outdir: str) -> None:
             "chromosome":     int(chrom_n),
             "superpopulation": pop,
             "memory":         args.memory_mb,
-            "batchsize":      10000,
+            "batchsize":      3000,
         },
         "filepaths": {
             "general": {
