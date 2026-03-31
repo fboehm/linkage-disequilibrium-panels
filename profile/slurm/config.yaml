@@ -39,10 +39,11 @@ set-resources:
     mem_mb: 8000
     runtime: 480      # 8 h
 
-  # HAPNEST simulation (if enabled)
+  # HAPNEST simulation — one job per (rep, chrom), all run in parallel on SLURM
   simulate_hapnest:
     mem_mb: 8000
     runtime: 480      # 8 h
+    cpus_per_task: 4
 
   # 1KG population extraction — concatenates all 22 chromosomes
   extract_1kg_population:

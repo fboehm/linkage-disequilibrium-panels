@@ -55,13 +55,13 @@ hapmap3_sites_file: "resources/hapmap3_sites.tsv"
 #   hapgen2 – forward simulation from 1KG Phase 3 reference haplotypes
 #   hapnest – LD-preserving haplotype copying from 1KG+HGDP reference
 sim_methods:
-  - msprime
+  - hapnest
 
 # ── HAPNEST settings ──────────────────────────────────────────────────────────
 
 # Path to the HAPNEST Singularity container image.
 # Download with: singularity pull docker://sophiewharrie/intervene-synthetic-data
-hapnest_container: "sophiewharrie/intervene-synthetic-data"
+hapnest_container: "resources/hapnest/intervene-synthetic-data_latest.sif"
 
 # Directory populated by: singularity exec ... fetch
 # Must contain inputs/raw/ and inputs/processed/ subdirectories.

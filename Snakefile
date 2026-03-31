@@ -35,7 +35,7 @@ KG3_URL     = config.get("kg3_base_url",
 KG3_EBI_URL = config.get("kg3_ebi_url",
                           "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502")
 
-SIM_METHODS          = config.get("sim_methods", ["msprime"])
+SIM_METHODS          = config.get("sim_methods", ["hapnest"])
 HAPNEST_CONTAINER    = config.get("hapnest_container",
                                    "resources/hapnest/intervene-synthetic-data_latest.sif")
 HAPNEST_DATA_DIR     = config.get("hapnest_data_dir", "resources/hapnest/data")
@@ -244,6 +244,21 @@ rule simulate_msprime:
         """
 
 
+# ── Step 1b-i: Pull HAPNEST Singularity container ────────────────────────────
+
+rule pull_hapnest_container:
+    """Pull the HAPNEST Docker image and save as a Singularity SIF file."""
+    output:
+        sif = HAPNEST_CONTAINER,
+    log: "logs/setup/pull_hapnest_container.log"
+    shell:
+        """
+        mkdir -p $(dirname {output.sif})
+        singularity pull {output.sif} docker://sophiewharrie/intervene-synthetic-data \
+            2> {log}
+        """
+
+
 # ── Step 1b-ii: Simulate genotypes with HAPNEST ───────────────────────────────
 
 rule simulate_hapnest:
@@ -264,8 +279,9 @@ rule simulate_hapnest:
         container   = HAPNEST_CONTAINER,
         docker_flag = "--use-docker" if HAPNEST_USE_DOCKER else "",
     log: "logs/simulate/hapnest_rep{rep}_{chrom}.log"
+    threads: 4
     resources:
-        mem_mb = 4000,
+        mem_mb = 8000,
     shell:
         """
         mkdir -p {params.outdir}
