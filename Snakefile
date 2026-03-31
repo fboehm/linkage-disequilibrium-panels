@@ -336,7 +336,8 @@ rule simulate_hapnest:
     log: "logs/simulate/hapnest_rep{rep}_{chrom}.log"
     threads: 4
     resources:
-        mem_mb = 8000,
+        mem_mb  = 32000,
+        runtime = 360,   # 6 h wall-clock limit
     shell:
         """
         module load singularity/3.8.7
