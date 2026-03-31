@@ -77,7 +77,7 @@ hapnest_superpopulation: "AMR"
 # Docker: docker run --rm -v {data_dir}:/data/ {image} generate_geno ...
 # Singularity: singularity exec --bind {data_dir}:/data/ {sif} generate_geno ...
 # Use true on Windows/WSL2 (Docker Desktop); false on Linux clusters (Singularity).
-hapnest_use_docker: true
+hapnest_use_docker: false
 
 # ── HAPGEN2 / 1000 Genomes reference panel ────────────────────────────────────
 

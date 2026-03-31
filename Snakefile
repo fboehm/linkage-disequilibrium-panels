@@ -197,6 +197,30 @@ rule collect_all_metrics:
         """
 
 
+# ── Step 1a-i: Download HapMap3 SNP positions ────────────────────────────────
+
+rule download_hapmap3_sites:
+    """Download HapMap3 Phase 3 SNP positions (GRCh37) used by simulate_msprime.
+    Source: Privé et al. LDpred2 tutorial data (figshare).
+    Note: only needed when sim_methods includes msprime.
+    """
+    output:
+        tsv = config["hapmap3_sites_file"],
+    log: "logs/download/hapmap3_sites.log"
+    shell:
+        """
+        mkdir -p $(dirname {output.tsv})
+        Rscript -e "
+          tmp <- tempfile(fileext = '.rds')
+          download.file('https://figshare.com/ndownloader/files/36360325', tmp, quiet = TRUE)
+          map <- readRDS(tmp)
+          write.table(data.frame(chrom = map[['chr']], pos = map[['pos']]),
+                      '{output.tsv}', sep = '\\t', quote = FALSE, row.names = FALSE)
+          unlink(tmp)
+        " 2> {log}
+        """
+
+
 # ── Step 1a: Download 1KG Phase 3 genetic maps ────────────────────────────────
 
 rule download_genetic_map:
@@ -251,6 +275,8 @@ rule pull_hapnest_container:
     output:
         sif = HAPNEST_CONTAINER,
     log: "logs/setup/pull_hapnest_container.log"
+    envmodules:
+        "singularity/3.8.7",
     shell:
         """
         mkdir -p $(dirname {output.sif})
@@ -282,6 +308,8 @@ rule simulate_hapnest:
     threads: 4
     resources:
         mem_mb = 8000,
+    envmodules:
+        "singularity/3.8.7",
     shell:
         """
         mkdir -p {params.outdir}
