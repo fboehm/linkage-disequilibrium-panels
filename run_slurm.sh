@@ -1,4 +1,4 @@
-#!/bin/bash
+d#!/bin/bash
 # Run Snakemake on the login node — it submits jobs to SLURM itself.
 #
 # Usage:
