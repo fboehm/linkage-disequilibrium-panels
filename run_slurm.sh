@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=ld-panels-snakemake
 #SBATCH --partition=compute
+#SBATCH --account=math
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --time=7-00:00:00
