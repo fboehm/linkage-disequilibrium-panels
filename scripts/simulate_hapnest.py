@@ -212,6 +212,7 @@ def run_hapnest(args, config_path: Path) -> None:
             "singularity", "exec",
             "--no-home",
             "--env", "JULIA_DEPOT_PATH=/tmp/julia_depot:/root/.julia",
+            "--env", "GKSwstype=nul",
             "--bind", f"{data_dir}:/data/",
             args.hapnest_container,
             "generate_geno",
