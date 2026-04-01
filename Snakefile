@@ -350,6 +350,8 @@ rule simulate_hapnest:
     shell:
         """
         module load singularity/3.8.7
+        module load plink/2.0-alpha
+        module load bcftools/1.19
         mkdir -p {params.outdir}
         python3 {input.script} \
             --chrom              {wildcards.chrom} \
