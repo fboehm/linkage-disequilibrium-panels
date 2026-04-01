@@ -325,9 +325,8 @@ def split_and_convert(plink_prefix: str, args, outdir: Path) -> None:
         subprocess.run(
             [
                 "bcftools", "reheader",
-                "--samples",     str(rename_file),
-                "--output-type", "z",
-                "--output",      str(vcf_out),
+                "--samples", str(rename_file),
+                "--output",  str(vcf_out),
                 str(tmp_prefix) + ".vcf.gz",
             ],
             check=True,
