@@ -213,21 +213,32 @@ def run_hapnest(args, config_path: Path, hapnest_outdir_host: Path) -> None:
             config_in_container,
         ]
     else:
-        # Write a stub evaluation.jl that skips Plots/GR imports.
-        # run_program.jl always includes evaluation.jl even for generate_geno,
-        # which pulls in Plots → GR → libGR.so → fails on headless HPC nodes.
+        # Stub out scripts that import heavy/headless-incompatible packages.
+        # run_program.jl unconditionally includes both of these even when only
+        # generating genotypes:
+        #   line 5: optimisation/abc.jl  → GpABC → OrdinaryDiffEq → DiffEqBase
+        #   line 8: evaluation/evaluation.jl → Plots → GR → libGR.so
+        # Both fail on headless HPC nodes, so we replace them with empty stubs.
         stub_eval = data_dir / "stub_evaluation.jl"
         stub_eval.write_text(
             "# stub: evaluation disabled for headless genotype generation\n"
         )
+        stub_abc = data_dir / "stub_abc.jl"
+        stub_abc.write_text(
+            "# stub: ABC optimisation disabled for headless genotype generation\n"
+        )
 
+        # Use /tmp/julia_depot so each compute node has its own isolated
+        # compiled-package cache.  Using a path inside /data/ (shared across
+        # all parallel jobs) causes segfaults from concurrent cache writes.
         cmd = [
             "singularity", "exec",
             "--no-home",
-            "--env", "JULIA_DEPOT_PATH=/data/julia_depot:/root/.julia",
+            "--env", "JULIA_DEPOT_PATH=/tmp/julia_depot:/root/.julia",
             "--env", "GKSwstype=nul",
             "--bind", f"{data_dir}:/data/",
             "--bind", f"{stub_eval}:/opt/intervene/scripts/evaluation/evaluation.jl",
+            "--bind", f"{stub_abc}:/opt/intervene/scripts/optimisation/abc.jl",
         ]
         # If the HAPNEST output directory lives outside the data bind-mount
         # (e.g. on a scratch filesystem), add a second bind-mount for it.
