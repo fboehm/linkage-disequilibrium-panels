@@ -42,7 +42,7 @@ set-resources:
 
   # HAPNEST simulation — one job per (rep, chrom), all run in parallel on SLURM
   simulate_hapnest:
-    mem_mb: 8000
+    mem_mb: 32000
     runtime: 480      # 8 h
     cpus_per_task: 4
 

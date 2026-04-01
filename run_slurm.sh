@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run Snakemake on the login node — it submits jobs to SLURM itself.
+# Run Snakemake on the login node — it submits HAPNEST genotype jobs to SLURM.
 #
 # Usage:
 #   screen -S ld-panels        # or: tmux new -s ld-panels
@@ -23,9 +23,11 @@ cd /home/jacks.local/frederick.boehm/linkage-disequilibrium-panels
 mkdir -p logs/slurm
 
 # ── Run Snakemake ──────────────────────────────────────────────────────────────
-# Change 'all_pgs' to 'all' to stop after genotype + phenotype generation.
+# Target: all HAPNEST VCF outputs (gwas/target/panel) for every chromosome and
+# replicate.  Change 'all_hapnest' to 'all_pgs' to run the full PGS pipeline.
 
-snakemake all_pgs \
+snakemake all_hapnest \
     --profile profile/slurm \
+    --config sim_methods="[hapnest]" \
     --rerun-incomplete \
     --keep-going

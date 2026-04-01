@@ -160,6 +160,15 @@ rule all:
         ),
 
 
+rule all_hapnest:
+    """All HAPNEST VCF outputs (gwas/target/panel) for every chromosome and replicate."""
+    input:
+        expand(
+            "results/vcf/hapnest/rep{rep}/{cohort}_{chrom}.vcf.gz",
+            rep=REPS, cohort=COHORTS, chrom=CHROMS,
+        ),
+
+
 rule all_pgs:
     """Full PGS evaluation across all simulation methods, panel sizes, ancestries, and PGS methods."""
     input:
