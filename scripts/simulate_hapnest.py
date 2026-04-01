@@ -322,15 +322,24 @@ def split_and_convert(plink_prefix: str, args, outdir: Path) -> None:
                 fh.write(f"{cohort_name}_{i}\n")
 
         vcf_out = outdir / f"{cohort_name}_{args.chrom}.vcf.gz"
-        subprocess.run(
+        # Pipe reheader stdout through bgzip to guarantee valid BGZF output.
+        # Older bcftools reheader produces corrupt BGZF when writing directly
+        # to a file (no --output-type support).
+        reheader = subprocess.Popen(
             [
                 "bcftools", "reheader",
                 "--samples", str(rename_file),
-                "--output",  str(vcf_out),
                 str(tmp_prefix) + ".vcf.gz",
             ],
-            check=True,
+            stdout=subprocess.PIPE,
         )
+        with open(vcf_out, "wb") as fh:
+            subprocess.run(["bgzip", "-c"], stdin=reheader.stdout,
+                           stdout=fh, check=True)
+        reheader.stdout.close()
+        rc = reheader.wait()
+        if rc != 0:
+            raise subprocess.CalledProcessError(rc, "bcftools reheader")
 
         # ── 4. Index ──────────────────────────────────────────────────────────
         subprocess.run(["tabix", "-p", "vcf", str(vcf_out)], check=True)
