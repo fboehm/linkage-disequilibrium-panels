@@ -18,7 +18,7 @@ module load snakemake
 # Initialize conda for non-interactive shells (needed when running as a script).
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
-cd /home/jacks.local/frederick.boehm/linkage-disequilibrium-panels
+cd /scratch/jacks.local/frederick.boehm/linkage-disequilibrium-panels
 
 mkdir -p logs/slurm
 
