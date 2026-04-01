@@ -41,6 +41,7 @@ HAPNEST_CONTAINER    = config.get("hapnest_container",
 HAPNEST_DATA_DIR     = config.get("hapnest_data_dir", "resources/hapnest/data")
 HAPNEST_SUPERPOP     = config.get("hapnest_superpopulation", "AMR")
 HAPNEST_USE_DOCKER   = config.get("hapnest_use_docker", False)
+HAPNEST_REPO         = config.get("hapnest_repo", "resources/hapnest/repo")
 
 COHORTS = ["gwas", "target", "panel"]
 REPS    = list(range(1, N_REPS + 1))
@@ -97,7 +98,7 @@ VALID_PANEL_COMBOS = _valid_panel_combos()
 # ── Wildcard constraints ───────────────────────────────────────────────────────
 
 wildcard_constraints:
-    sim_method     = r"msprime|hapgen2|hapnest",
+    sim_method     = r"msprime|hapgen2|hapnest|hapnest_public",
     panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg|oracle",
     panel_n        = r"\d+",
     method         = r"ldpred2|prscs",
@@ -171,11 +172,11 @@ rule all:
 
 
 rule all_hapnest:
-    """All HAPNEST VCF outputs (gwas/target/panel) for every chromosome and replicate."""
+    """All HAPNEST public-dataset VCF outputs (gwas/target/panel) for every chromosome."""
     input:
         expand(
-            "results/vcf/hapnest/rep{rep}/{cohort}_{chrom}.vcf.gz",
-            rep=REPS, cohort=COHORTS, chrom=CHROMS,
+            "results/vcf/hapnest_public/rep1/{cohort}_{chrom}.vcf.gz",
+            cohort=COHORTS, chrom=CHROMS,
         ),
 
 
@@ -288,97 +289,121 @@ rule simulate_msprime:
         """
 
 
-# ── Step 1b-i: Pull HAPNEST Singularity container ────────────────────────────
+# ── Step 1b: Download HAPNEST public dataset (EBI BioStudies S-BSST936) ───────
 
-rule pull_hapnest_container:
-    """Pull the HAPNEST Docker image and save as a Singularity SIF file."""
+EBI_HAPNEST_BASE = "https://ftp.ebi.ac.uk/biostudies/fire/S-BSST/936/S-BSST936/Files"
+
+
+rule download_hapnest_public_sample:
+    """Download the population-label file for the HAPNEST public dataset."""
     output:
-        sif = HAPNEST_CONTAINER,
-    log: "logs/setup/pull_hapnest_container.log"
+        sample = "resources/hapnest_public/synthetic_v1.sample",
+    log: "logs/setup/download_hapnest_public_sample.log"
     shell:
         """
-        module load singularity/3.8.7
-        mkdir -p $(dirname {output.sif})
-        singularity pull {output.sif} docker://sophiewharrie/intervene-synthetic-data \
+        mkdir -p resources/hapnest_public
+        wget -q -O {output.sample} \
+            {EBI_HAPNEST_BASE}/synthetic_v1.sample \
             2> {log}
         """
 
 
-# ── Step 1b-i.5: Fetch HAPNEST reference data ────────────────────────────────
+rule download_hapnest_public_plink:
+    """Download PLINK binary files for one chromosome from the HAPNEST public dataset."""
+    output:
+        bed = "resources/hapnest_public/raw/synthetic_v1_chr-{chrom_n}.bed",
+        bim = "resources/hapnest_public/raw/synthetic_v1_chr-{chrom_n}.bim",
+        fam = "resources/hapnest_public/raw/synthetic_v1_chr-{chrom_n}.fam",
+    log: "logs/setup/download_hapnest_public_chr{chrom_n}.log"
+    resources:
+        runtime = 480,   # large files — chr1 bed is ~125 GB
+    shell:
+        """
+        mkdir -p resources/hapnest_public/raw
+        wget -q -O {output.bed} \
+            {EBI_HAPNEST_BASE}/genotypes/synthetic_v1_chr-{wildcards.chrom_n}.bed \
+            2>  {log}
+        wget -q -O {output.bim} \
+            {EBI_HAPNEST_BASE}/genotypes/synthetic_v1_chr-{wildcards.chrom_n}.bim \
+            2>> {log}
+        wget -q -O {output.fam} \
+            {EBI_HAPNEST_BASE}/genotypes/synthetic_v1_chr-{wildcards.chrom_n}.fam \
+            2>> {log}
+        """
 
-rule fetch_hapnest_data:
-    """Download 1KG+HGDP reference data into the HAPNEST data directory.
 
-    Must be run once before any simulate_hapnest jobs.  Creates a sentinel
-    file so Snakemake knows the download is complete.
+rule partition_hapnest_public:
+    """Filter to AMR subjects, randomly select 30 k, and split into cohorts.
+
+    Reads the chr1 FAM file (sample IDs) and the population sample file,
+    keeps only AMR individuals, draws n_gwas+n_target+n_panel at random,
+    and writes per-cohort keep files (for plink2 --keep) and rename files
+    (for bcftools reheader -s).  Run once; independent of chromosome.
     """
     input:
-        sif = HAPNEST_CONTAINER,
+        fam    = "resources/hapnest_public/raw/synthetic_v1_chr-1.fam",
+        sample = "resources/hapnest_public/synthetic_v1.sample",
+        script = "scripts/partition_hapnest_public.py",
     output:
-        sentinel = HAPNEST_DATA_DIR + "/inputs/.fetch_done",
-    log: "logs/setup/fetch_hapnest_data.log"
-    resources:
-        mem_mb  = 4000,
-        runtime = 480,   # 8 h — depends on network speed
+        keep_gwas   = "resources/hapnest_public/keep_gwas.txt",
+        keep_target = "resources/hapnest_public/keep_target.txt",
+        keep_panel  = "resources/hapnest_public/keep_panel.txt",
+        rename_gwas   = "resources/hapnest_public/rename_gwas.txt",
+        rename_target = "resources/hapnest_public/rename_target.txt",
+        rename_panel  = "resources/hapnest_public/rename_panel.txt",
+    log: "logs/setup/partition_hapnest_public.log"
     shell:
         """
-        module load singularity/3.8.7
-        singularity exec \
-            --no-home \
-            --bind {HAPNEST_DATA_DIR}:/data/ \
-            {input.sif} \
-            fetch \
-            > {log} 2>&1
-        touch {output.sentinel}
+        python3 {input.script} \
+            --fam      {input.fam} \
+            --sample   {input.sample} \
+            --n-gwas   {N_GWAS} \
+            --n-target {N_TARGET} \
+            --n-panel  {N_PANEL_MAX} \
+            --seed     {BASE_SEED} \
+            --outdir   resources/hapnest_public \
+            2> {log}
         """
 
 
-# ── Step 1b-ii: Simulate genotypes with HAPNEST ───────────────────────────────
-
-rule simulate_hapnest:
-    """Simulate genotypes using HAPNEST (LD-preserving haplotype copying from 1KG+HGDP)."""
+rule extract_hapnest_public_vcf:
+    """Extract one cohort from the public PLINK files and export as bgzipped VCF."""
     input:
-        script    = "scripts/simulate_hapnest.py",
-        data_ready = HAPNEST_DATA_DIR + "/inputs/.fetch_done",
-        **({} if HAPNEST_USE_DOCKER else {"container": HAPNEST_CONTAINER}),
+        bed    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bed".format(wc.chrom.lstrip("chr")),
+        bim    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bim".format(wc.chrom.lstrip("chr")),
+        fam    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.fam".format(wc.chrom.lstrip("chr")),
+        keep   = "resources/hapnest_public/keep_{cohort}.txt",
+        rename = "resources/hapnest_public/rename_{cohort}.txt",
     output:
-        expand(
-            "results/vcf/hapnest/rep{{rep}}/{cohort}_{{chrom}}.vcf.gz",
-            cohort=COHORTS,
-        ),
+        vcf = "results/vcf/hapnest_public/rep1/{cohort}_{chrom}.vcf.gz",
     params:
-        outdir      = "results/vcf/hapnest/rep{rep}",
-        seed        = sim_seed,
-        superpop    = HAPNEST_SUPERPOP,
-        data_dir    = HAPNEST_DATA_DIR,
-        container   = HAPNEST_CONTAINER,
-        docker_flag = "--use-docker" if HAPNEST_USE_DOCKER else "",
-    log: "logs/simulate/hapnest_rep{rep}_{chrom}.log"
+        plink_prefix = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}".format(wc.chrom.lstrip("chr")),
+        tmp_prefix   = "results/vcf/hapnest_public/rep1/_tmp_{cohort}_{chrom}",
+    log: "logs/extract/hapnest_public_{cohort}_{chrom}.log"
     threads: 4
     resources:
-        mem_mb  = 32000,
-        runtime = 360,   # 6 h wall-clock limit
+        mem_mb  = 16000,
+        runtime = 120,
     shell:
         """
-        module load singularity/3.8.7
         module load plink/2.0-alpha
         module load bcftools/1.19
-        mkdir -p {params.outdir}
-        python3 {input.script} \
-            --chrom              {wildcards.chrom} \
-            --n-gwas             {N_GWAS} \
-            --n-target           {N_TARGET} \
-            --n-panel            {N_PANEL_MAX} \
-            --seed               {params.seed} \
-            --superpopulation    {params.superpop} \
-            --outdir             {params.outdir} \
-            --hapnest-container  {params.container} \
-            --hapnest-data-dir   {params.data_dir} \
-            --threads            {threads} \
-            --memory-mb          {resources.mem_mb} \
-            --hapnest-tmp-dir    "$TMPDIR" \
-            {params.docker_flag} \
+        mkdir -p results/vcf/hapnest_public/rep1
+        plink2 \
+            --bfile   {params.plink_prefix} \
+            --keep    {input.keep} \
+            --export  vcf-4.2 bgz \
+            --threads {threads} \
+            --memory  {resources.mem_mb} \
+            --out     {params.tmp_prefix} \
             2>> {log}
+        bcftools reheader \
+            --samples     {input.rename} \
+            --output-type z \
+            --output      {output.vcf} \
+            {params.tmp_prefix}.vcf.gz \
+            2>> {log}
+        rm -f {params.tmp_prefix}.vcf.gz {params.tmp_prefix}.log
         """
 
 

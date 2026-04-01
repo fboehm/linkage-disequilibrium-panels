@@ -67,14 +67,21 @@ def parse_args():
                         "(default: AMR)")
     p.add_argument("--outdir", required=True,
                    help="Directory where output VCF files are written")
-    p.add_argument("--hapnest-container", required=True,
+    p.add_argument("--hapnest-container", default=None,
                    help="Singularity: path to .sif file.  "
-                        "Docker: image name (e.g. sophiewharrie/intervene-synthetic-data)")
+                        "Docker: image name (e.g. sophiewharrie/intervene-synthetic-data). "
+                        "Ignored when --native is set.")
     p.add_argument("--hapnest-data-dir", required=True,
                    help="Path to the HAPNEST data directory — must contain "
-                        "inputs/ populated by the container 'fetch' command")
+                        "inputs/ populated by the 'fetch' command")
     p.add_argument("--use-docker", action="store_true",
                    help="Use Docker instead of Singularity to run HAPNEST")
+    p.add_argument("--hapnest-repo", default=None,
+                   help="Path to the cloned HAPNEST Julia repository. "
+                        "Required when --native is set.")
+    p.add_argument("--native", action="store_true",
+                   help="Run HAPNEST via Julia directly (no container). "
+                        "Requires --hapnest-repo and julia on PATH.")
     p.add_argument("--threads", type=int, default=4,
                    help="CPU threads passed to HAPNEST generate_geno "
                         "(default: 4)")
@@ -93,18 +100,20 @@ def chrom_num(chrom: str) -> str:
     return str(chrom).lstrip("chr")
 
 
-def write_hapnest_config(args, config_path: Path, hapnest_outdir: str) -> None:
+def write_hapnest_config(args, config_path: Path, hapnest_outdir: str,
+                         data_root: str) -> None:
     """
     Write a HAPNEST config YAML for this chromosome / replicate.
 
-    All file paths use the /data/ prefix because the host data directory is
-    bind-mounted at /data/ inside the Singularity container.  HAPNEST replaces
-    the literal string {chromosome} with the chromosome number at runtime.
+    data_root is the directory where inputs/ lives as seen by generate_geno:
+      - container mode: "/data" (the bind-mount point)
+      - native mode:    the resolved host path of hapnest_data_dir
+    HAPNEST replaces the literal string {chromosome} with the chromosome number
+    at runtime.
     """
-    chrom_n   = chrom_num(args.chrom)
-    n_total   = args.n_gwas + args.n_target + args.n_panel
-    pop       = args.superpopulation
-    data_root = "/data"          # bind-mount point inside the container
+    chrom_n = chrom_num(args.chrom)
+    n_total = args.n_gwas + args.n_target + args.n_panel
+    pop     = args.superpopulation
 
     # File-path patterns — HAPNEST substitutes {chromosome} internally.
     inp_raw  = f"{data_root}/inputs/raw/1KG+HGDP"
@@ -196,9 +205,25 @@ def write_hapnest_config(args, config_path: Path, hapnest_outdir: str) -> None:
 
 
 def run_hapnest(args, config_path: Path, hapnest_outdir_host: Path) -> None:
-    """Run HAPNEST generate_geno via Singularity or Docker."""
+    """Run HAPNEST generate_geno via Singularity, Docker, or natively."""
     data_dir   = Path(args.hapnest_data_dir).resolve()
     config_abs = config_path.resolve()
+
+    if args.native:
+        if not args.hapnest_repo:
+            raise ValueError("--hapnest-repo is required when --native is set")
+        repo = Path(args.hapnest_repo).resolve()
+        cmd = [
+            "julia",
+            f"--project={repo}",
+            "-t", "1",   # avoid ProgressMeter threading race condition
+            str(repo / "scripts" / "run_program.jl"),
+            str(args.threads),
+            str(config_abs),
+        ]
+        print(f"Running HAPNEST (native): {' '.join(cmd)}", file=sys.stderr)
+        subprocess.run(cmd, check=True)
+        return
 
     # Config path as seen inside the container (/data/ bind-mount).
     config_in_container = "/data/" + str(config_abs.relative_to(data_dir))
@@ -387,7 +412,13 @@ def main():
     )
 
     # ── Step 1: Write config ──────────────────────────────────────────────────
-    write_hapnest_config(args, config_path, hapnest_outdir_container)
+    if args.native:
+        data_root    = str(data_dir)
+        config_outdir = str(hapnest_outdir_host)
+    else:
+        data_root    = "/data"
+        config_outdir = hapnest_outdir_container
+    write_hapnest_config(args, config_path, config_outdir, data_root)
 
     # ── Step 2: Run HAPNEST ───────────────────────────────────────────────────
     run_hapnest(args, config_path, hapnest_outdir_host)
