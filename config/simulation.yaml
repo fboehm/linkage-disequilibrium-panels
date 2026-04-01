@@ -137,6 +137,15 @@ pgs_methods:
   - ldpred2
   - prscs
 
+# ── PRS-CS reference panel URLs ───────────────────────────────────────────────
+# 1KG LD reference panels from getian107/PRScs (Ge et al. 2019, Nat Commun).
+# Verify / update URLs from: https://github.com/getian107/PRScs
+# Each tarball extracts to a flat directory of ldblk_1kg_chr{N}.hdf5 + snpinfo_1kg_hm3.
+prscs_ref_urls:
+  eur: "https://www.dropbox.com/s/mt6var0z96vb6fv/ldblk_1kg_eur.tar.gz?dl=1"
+  afr: "https://www.dropbox.com/s/mq94h1q9uuhun1h/ldblk_1kg_afr.tar.gz?dl=1"
+  amr: "https://www.dropbox.com/s/uv5ydr4uv528lca/ldblk_1kg_amr.tar.gz?dl=1"
+
 # Number of PCs to include as GWAS covariates (and in the evaluation models).
 n_pcs: 10
 

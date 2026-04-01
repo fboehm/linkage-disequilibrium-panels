@@ -55,6 +55,16 @@ TRAIT_LABELS    = list(TRAIT_CONFIGS.keys())
 
 # ── Panel & method parameters ──────────────────────────────────────────────────
 
+# PRS-CS: maps each panel ancestry to its 1KG population code for ref download.
+PRSCS_POP = {
+    "matched_admixed": "amr",
+    "EUR_1kg":         "eur",
+    "AFR_1kg":         "afr",
+    "AMR_1kg":         "amr",
+    "oracle":          "amr",
+}
+PRSCS_REF_URLS = config.get("prscs_ref_urls", {})
+
 PANEL_SIZES      = config.get("panel_sizes",
                                [100, 250, 500, 1000, 2500, 5000, 10000])
 PANEL_ANCESTRIES = config.get("panel_ancestries",
@@ -199,6 +209,7 @@ rule collect_all_metrics:
     log: "logs/collect_metrics.log"
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --results-dir results/evaluation \
             --out         {output} \
@@ -554,6 +565,7 @@ rule simulate_phenotypes:
         mem_mb = 4000,
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --bed         {input.bed} \
             --h2          {wildcards.h2} \
@@ -584,6 +596,7 @@ rule split_subjects:
         "logs/splits/{sim_method}_rep{rep}.log",
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --fam        {input.fam} \
             --train-frac {params.train_frac} \
@@ -723,6 +736,7 @@ rule prepare_ldpred2_ref:
     resources: mem_mb = 32000
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         mkdir -p {params.out_dir}
         Rscript {input.script} \
             --panel-bed    {input.bed} \
@@ -760,6 +774,7 @@ rule run_ldpred2:
         mem_mb = 4000,
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --sumstats   {input.sumstats} \
             --ref-dir    {params.ref_dir} \
@@ -773,6 +788,34 @@ rule run_ldpred2:
         """
 
 
+# ── Step 8c-i: Download PRS-CS 1KG LD reference panel ────────────────────────
+
+rule download_prscs_ref:
+    """Download and extract a PRS-CS 1KG LD reference panel for one panel ancestry.
+
+    The tarball from getian107/PRScs contains ldblk_1kg_chr{N}.hdf5 files and
+    snpinfo_1kg_hm3, all in a single top-level directory which is stripped so
+    they land directly in resources/prscs_ref/{panel_ancestry}/.
+    """
+    output:
+        sentinel = "resources/prscs_ref/{panel_ancestry}/snpinfo_1kg_hm3",
+    params:
+        outdir = "resources/prscs_ref/{panel_ancestry}",
+        url    = lambda wc: PRSCS_REF_URLS[PRSCS_POP[wc.panel_ancestry]],
+    wildcard_constraints:
+        panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg",
+    log: "logs/setup/prscs_ref_{panel_ancestry}.log"
+    resources:
+        runtime = 120,
+    shell:
+        """
+        mkdir -p {params.outdir}
+        wget -q -O - "{params.url}" \
+            | tar -xz --strip-components=1 -C {params.outdir} \
+            2> {log}
+        """
+
+
 # ── Step 8c: Compute PRS-CS weights ───────────────────────────────────────────
 
 rule run_prscs:
@@ -780,6 +823,7 @@ rule run_prscs:
     input:
         sumstats = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
         script   = "scripts/run_prscs.py",
+        ref_data = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
@@ -851,6 +895,7 @@ rule evaluate_pgs:
         "logs/evaluation/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --scores     {input.scores} \
             --pheno      {input.pheno} \

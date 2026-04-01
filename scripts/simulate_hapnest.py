@@ -111,7 +111,7 @@ def write_hapnest_config(args, config_path: Path, hapnest_outdir: str) -> None:
             "chromosome":     int(chrom_n),
             "superpopulation": pop,
             "memory":         args.memory_mb,
-            "batchsize":      3000,
+            "batchsize":      1500,
         },
         "filepaths": {
             "general": {
@@ -303,8 +303,9 @@ def split_and_convert(plink_prefix: str, args, outdir: Path) -> None:
         subprocess.run(
             [
                 "bcftools", "reheader",
-                "--samples", str(rename_file),
-                "--output",  str(vcf_out),
+                "--samples",     str(rename_file),
+                "--output-type", "z",
+                "--output",      str(vcf_out),
                 str(tmp_prefix) + ".vcf.gz",
             ],
             check=True,

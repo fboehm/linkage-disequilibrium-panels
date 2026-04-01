@@ -26,7 +26,7 @@ mkdir -p logs/slurm
 # Target: all HAPNEST VCF outputs (gwas/target/panel) for every chromosome and
 # replicate.  Change 'all_hapnest' to 'all_pgs' to run the full PGS pipeline.
 
-snakemake all_hapnest \
+snakemake all_pgs \
     --profile profile/slurm \
     --config sim_methods="[hapnest]" \
     --rerun-incomplete \
