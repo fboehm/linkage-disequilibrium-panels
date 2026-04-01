@@ -80,6 +80,11 @@ def parse_args():
                         "(default: 4)")
     p.add_argument("--memory-mb", type=int, default=30000,
                    help="Memory cap passed to HAPNEST in MB (default: 30000)")
+    p.add_argument("--hapnest-tmp-dir", default=None,
+                   help="Scratch directory for HAPNEST intermediate PLINK output. "
+                        "Use $TMPDIR on SLURM compute nodes to keep large batch "
+                        "files off the home-directory quota. Cleaned up after "
+                        "VCFs are written. Defaults to data-dir/outputs/.")
     return p.parse_args()
 
 
@@ -190,7 +195,7 @@ def write_hapnest_config(args, config_path: Path, hapnest_outdir: str) -> None:
     print(f"  Wrote HAPNEST config: {config_path}", file=sys.stderr)
 
 
-def run_hapnest(args, config_path: Path) -> None:
+def run_hapnest(args, config_path: Path, hapnest_outdir_host: Path) -> None:
     """Run HAPNEST generate_geno via Singularity or Docker."""
     data_dir   = Path(args.hapnest_data_dir).resolve()
     config_abs = config_path.resolve()
@@ -223,6 +228,12 @@ def run_hapnest(args, config_path: Path) -> None:
             "--env", "GKSwstype=nul",
             "--bind", f"{data_dir}:/data/",
             "--bind", f"{stub_eval}:/opt/intervene/scripts/evaluation/evaluation.jl",
+        ]
+        # If the HAPNEST output directory lives outside the data bind-mount
+        # (e.g. on a scratch filesystem), add a second bind-mount for it.
+        if not str(hapnest_outdir_host).startswith(str(data_dir)):
+            cmd += ["--bind", f"{hapnest_outdir_host}:/hapnest_tmp/"]
+        cmd += [
             args.hapnest_container,
             "generate_geno",
             str(args.threads),
@@ -345,10 +356,16 @@ def main():
     # Config is written into the data dir so it's accessible inside the container.
     config_path = data_dir / f"config_rep{args.seed}_chr{chrom_n}.yaml"
 
-    # HAPNEST output directory (as seen inside the container).
-    hapnest_outdir_container = f"/data/outputs/rep{args.seed}/chr{chrom_n}"
-    # … and on the host filesystem:
-    hapnest_outdir_host      = data_dir / "outputs" / f"rep{args.seed}" / f"chr{chrom_n}"
+    # HAPNEST output directory: use scratch if --hapnest-tmp-dir is given so
+    # that large intermediate PLINK batch files don't fill the home-dir quota.
+    if args.hapnest_tmp_dir:
+        hapnest_outdir_host      = Path(args.hapnest_tmp_dir) / f"hapnest_rep{args.seed}_chr{chrom_n}"
+        hapnest_outdir_container = "/hapnest_tmp"
+        using_tmp = True
+    else:
+        hapnest_outdir_host      = data_dir / "outputs" / f"rep{args.seed}" / f"chr{chrom_n}"
+        hapnest_outdir_container = f"/data/outputs/rep{args.seed}/chr{chrom_n}"
+        using_tmp = False
     hapnest_outdir_host.mkdir(parents=True, exist_ok=True)
 
     print(
@@ -361,14 +378,18 @@ def main():
     write_hapnest_config(args, config_path, hapnest_outdir_container)
 
     # ── Step 2: Run HAPNEST ───────────────────────────────────────────────────
-    run_hapnest(args, config_path)
+    run_hapnest(args, config_path, hapnest_outdir_host)
 
     # ── Step 3: Split output into cohorts and convert to per-cohort VCFs ─────
     plink_prefix = str(hapnest_outdir_host / f"hapnest_chr-{chrom_n}")
     split_and_convert(plink_prefix, args, outdir)
 
-    # ── Step 4: Remove per-run config ─────────────────────────────────────────
+    # ── Step 4: Remove per-run config and scratch output dir ─────────────────
     config_path.unlink(missing_ok=True)
+    if using_tmp:
+        import shutil
+        shutil.rmtree(hapnest_outdir_host, ignore_errors=True)
+        print(f"  Removed scratch dir: {hapnest_outdir_host}", file=sys.stderr)
 
 
 if __name__ == "__main__":

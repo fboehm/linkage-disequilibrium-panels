@@ -376,6 +376,7 @@ rule simulate_hapnest:
             --hapnest-data-dir   {params.data_dir} \
             --threads            {threads} \
             --memory-mb          {resources.mem_mb} \
+            --hapnest-tmp-dir    "$TMPDIR" \
             {params.docker_flag} \
             2>> {log}
         """
