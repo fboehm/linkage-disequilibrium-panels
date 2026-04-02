@@ -814,6 +814,21 @@ rule run_ldpred2:
         """
 
 
+# ── Step 8c-ii: Install PRS-CS software ───────────────────────────────────────
+
+rule install_prscs:
+    """Clone the PRS-CS repository so PRScs.py is available locally."""
+    output:
+        exe = "resources/prscs/PRScs.py",
+    log: "logs/setup/install_prscs.log"
+    shell:
+        """
+        rm -rf resources/prscs
+        git clone --depth 1 https://github.com/getian107/PRScs.git resources/prscs \
+            2> {log}
+        """
+
+
 # ── Step 8c-i: Download PRS-CS 1KG LD reference panel ────────────────────────
 
 rule download_prscs_ref:
@@ -847,9 +862,10 @@ rule download_prscs_ref:
 rule run_prscs:
     """Compute PRS-CS posterior effect-size weights."""
     input:
-        sumstats = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
-        script   = "scripts/run_prscs.py",
-        ref_data = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
+        sumstats  = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+        script    = "scripts/run_prscs.py",
+        prscs_exe = "resources/prscs/PRScs.py",
+        ref_data  = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
@@ -863,11 +879,12 @@ rule run_prscs:
     shell:
         """
         python3 {input.script} \
-            --sumstats {input.sumstats} \
-            --ref-dir  {params.ref_dir} \
-            --n-gwas   {params.n_train} \
-            --seed     {params.seed} \
-            --out      {output.betas} \
+            --sumstats   {input.sumstats} \
+            --ref-dir    {params.ref_dir} \
+            --n-gwas     {params.n_train} \
+            --seed       {params.seed} \
+            --prscs-path {input.prscs_exe} \
+            --out        {output.betas} \
             2> {log}
         """
 
