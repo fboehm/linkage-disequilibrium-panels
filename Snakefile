@@ -341,7 +341,7 @@ rule partition_hapnest_public:
     (for bcftools reheader -s).  Run once; independent of chromosome.
     """
     input:
-        fam    = "resources/hapnest_public/raw/synthetic_v1_chr-1.fam",
+        fam    = "resources/hapnest_public/raw/synthetic_v1_chr-{}.fam".format(CHROMS[0].lstrip("chr")),
         sample = "resources/hapnest_public/synthetic_v1.sample",
         script = "scripts/partition_hapnest_public.py",
     output:
