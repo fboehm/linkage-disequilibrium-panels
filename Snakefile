@@ -824,7 +824,9 @@ rule install_prscs:
     shell:
         """
         rm -rf resources/prscs
-        git clone --depth 1 https://github.com/getian107/PRScs.git resources/prscs \
+        mkdir -p resources/prscs
+        wget -q -O - "https://github.com/getian107/PRScs/archive/refs/heads/master.tar.gz" \
+            | tar -xz --strip-components=1 -C resources/prscs \
             2> {log}
         """
 
