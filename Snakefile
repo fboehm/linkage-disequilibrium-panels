@@ -398,9 +398,8 @@ rule extract_hapnest_public_vcf:
             --out     {params.tmp_prefix} \
             2>> {log}
         bcftools reheader \
-            --samples     {input.rename} \
-            --output-type z \
-            --output      {output.vcf} \
+            --samples {input.rename} \
+            --output  {output.vcf} \
             {params.tmp_prefix}.vcf.gz \
             2>> {log}
         rm -f {params.tmp_prefix}.vcf.gz {params.tmp_prefix}.log

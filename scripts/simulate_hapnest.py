@@ -347,12 +347,10 @@ def split_and_convert(plink_prefix: str, args, outdir: Path) -> None:
                 fh.write(f"{cohort_name}_{i}\n")
 
         vcf_out = outdir / f"{cohort_name}_{args.chrom}.vcf.gz"
-        # Use --output-type z to write valid BGZF directly (bcftools >= 1.13).
         subprocess.run(
             [
                 "bcftools", "reheader",
                 "--samples", str(rename_file),
-                "--output-type", "z",
                 "--output", str(vcf_out),
                 str(tmp_prefix) + ".vcf.gz",
             ],
