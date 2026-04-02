@@ -2,7 +2,7 @@
 # --------------------------------
 # Chromosomes to simulate. Use a short list (e.g. [chr21, chr22]) for test runs.
 chromosomes:
-  - chr1
+  - chr22
 
 # Number of simulation replicates
 n_replicates: 1
