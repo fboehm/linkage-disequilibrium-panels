@@ -29,5 +29,5 @@ mkdir -p logs/slurm
 snakemake all_pgs \
     --profile profile/slurm \
     --config sim_methods="[hapnest_public]" \
-    --rerun-incomplete \
-    --keep-going
+    --rerun-incomplete #\
+#    --keep-going
