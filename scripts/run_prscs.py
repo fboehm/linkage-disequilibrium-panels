@@ -49,6 +49,11 @@ def parse_args():
                         "(e.g. results/plink/hapnest_public/gwas/rep1/merged)")
     p.add_argument("--phi",        default=None,
                    help="Global shrinkage parameter phi (None = auto)")
+    p.add_argument("--grch38-rsid-map", dest="grch38_rsid_maps",
+                   action="append", default=None, metavar="FILE",
+                   help="bgzipped TSV (no header): CHROM POS ID REF ALT in GRCh38. "
+                        "Used to map positional IDs to rsIDs when input data is GRCh38. "
+                        "May be supplied multiple times (once per chromosome).")
     return p.parse_args()
 
 
@@ -105,18 +110,40 @@ def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefi
 
 
 def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
-                   tmpdir: str) -> tuple:
+                   tmpdir: str, grch38_rsid_maps=None) -> tuple:
     """
-    Remap positional SNP IDs to rsIDs using the PRS-CS snpinfo file.
-    Matches on (CHR, BP).  Both the sumstats DataFrame and a temporary copy of
-    the .bim are updated.  Returns (updated_ss, new_bim_prefix).
+    Remap positional SNP IDs to rsIDs so they match the PRS-CS snpinfo.
+
+    Two modes:
+    - GRCh37 (default): match bim/sumstats (CHR, BP) against snpinfo GRCh37 positions.
+    - GRCh38: when grch38_rsid_maps is provided, map GRCh38 (CHR, POS) → rsID using
+      those files, then keep only rsIDs present in the snpinfo.
+
+    Returns (updated_ss, new_bim_prefix).
     """
     snpinfo_path = os.path.join(ref_dir, "snpinfo_1kg_hm3")
     snpinfo = pd.read_csv(snpinfo_path, sep="\t", low_memory=False)
     # columns: CHR  SNP  BP  A1  A2  MAF
-    snpinfo["CHR"] = snpinfo["CHR"].astype(str).str.lstrip("chr")
-    snpinfo["BP"]  = snpinfo["BP"].astype(int)
-    lookup = dict(zip(zip(snpinfo["CHR"], snpinfo["BP"]), snpinfo["SNP"]))
+
+    if grch38_rsid_maps:
+        # Build (GRCh38_CHR, GRCh38_POS) → rsID from user-supplied map files,
+        # keeping only rsIDs that appear in the snpinfo (HM3 SNPs PRScs knows about).
+        snpinfo_rsids = set(snpinfo["SNP"])
+        parts = []
+        for map_file in grch38_rsid_maps:
+            df = pd.read_csv(map_file, sep="\t", header=None,
+                             names=["CHR", "POS", "ID", "REF", "ALT"],
+                             compression="gzip")
+            df = df[df["ID"].isin(snpinfo_rsids)]
+            parts.append(df)
+        map_df = pd.concat(parts, ignore_index=True)
+        map_df["CHR"] = map_df["CHR"].astype(str).str.lstrip("chr")
+        map_df["POS"] = map_df["POS"].astype(int)
+        lookup = dict(zip(zip(map_df["CHR"], map_df["POS"]), map_df["ID"]))
+    else:
+        snpinfo["CHR"] = snpinfo["CHR"].astype(str).str.lstrip("chr")
+        snpinfo["BP"]  = snpinfo["BP"].astype(int)
+        lookup = dict(zip(zip(snpinfo["CHR"], snpinfo["BP"]), snpinfo["SNP"]))
 
     # ── remap sumstats ────────────────────────────────────────────────────────
     ss = ss.copy()
@@ -174,7 +201,8 @@ def main():
           file=sys.stderr)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        ss, bim_prefix = remap_to_rsids(ss, args.ref_dir, args.bim_prefix, tmpdir)
+        ss, bim_prefix = remap_to_rsids(ss, args.ref_dir, args.bim_prefix, tmpdir,
+                                        args.grch38_rsid_maps)
         print(f"[run_prscs] {len(ss)} SNPs remaining after rsID mapping",
               file=sys.stderr)
 

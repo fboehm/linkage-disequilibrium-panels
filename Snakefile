@@ -34,6 +34,11 @@ KG3_URL     = config.get("kg3_base_url",
                           "https://mathgen.stats.ox.ac.uk/impute/1000GP_Phase3")
 KG3_EBI_URL = config.get("kg3_ebi_url",
                           "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502")
+KG38_EBI_URL = config.get(
+    "kg38_ebi_url",
+    "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/"
+    "1000_genomes_project/release/20181203_biallelic_SNV",
+)
 
 SIM_METHODS          = config.get("sim_methods", ["hapnest"])
 HAPNEST_CONTAINER    = config.get("hapnest_container",
@@ -422,6 +427,59 @@ rule download_1kg_vcf:
         mkdir -p resources/1kg
         wget -q -O {output.vcf} "{params.ebi_vcf}" 2>  {log}
         wget -q -O {output.tbi} "{params.ebi_tbi}" 2>> {log}
+        """
+
+
+# ── Step 1c-ii: Download 1KG GRCh38 VCFs (for hapnest_public rsID annotation) ─
+
+rule download_1kg_grch38_vcf:
+    """Download 1KG Phase 3 GRCh38 phased VCF (biallelic SNVs) for rsID annotation."""
+    output:
+        vcf = "resources/1kg_grch38/ALL.{chrom}.vcf.gz",
+        tbi = "resources/1kg_grch38/ALL.{chrom}.vcf.gz.tbi",
+    params:
+        vcf_url = lambda wc: (
+            KG38_EBI_URL + "/ALL." + wc.chrom +
+            ".shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
+        ),
+        tbi_url = lambda wc: (
+            KG38_EBI_URL + "/ALL." + wc.chrom +
+            ".shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz.tbi"
+        ),
+    log: "logs/download/1kg_grch38_{chrom}.log"
+    resources:
+        runtime = 480,
+    shell:
+        """
+        mkdir -p resources/1kg_grch38
+        wget -q -O {output.vcf} "{params.vcf_url}" 2>  {log}
+        wget -q -O {output.tbi} "{params.tbi_url}" 2>> {log}
+        """
+
+
+rule make_grch38_rsid_map:
+    """Extract a (CHROM, POS, ID, REF, ALT) table from a 1KG GRCh38 VCF.
+
+    Used by run_prscs.py to map hapnest_public GRCh38 positions to rsIDs before
+    matching against the PRS-CS snpinfo_1kg_hm3 (GRCh37) by rsID.
+    Output: bgzipped TSV, no header, columns: CHROM(no chr) POS ID REF ALT.
+    """
+    input:
+        vcf = "resources/1kg_grch38/ALL.{chrom}.vcf.gz",
+        tbi = "resources/1kg_grch38/ALL.{chrom}.vcf.gz.tbi",
+    output:
+        tsv = "resources/1kg_grch38/rsid_map_{chrom}.tsv.gz",
+    log: "logs/setup/grch38_rsid_map_{chrom}.log"
+    shell:
+        """
+        module load bcftools/1.19
+        bcftools query \
+            --format '%CHROM\t%POS\t%ID\t%REF\t%ALT\n' \
+            {input.vcf} \
+        | awk '{{gsub(/^chr/, "", $1); print}}' \
+        | bgzip \
+        > {output.tsv} \
+        2> {log}
         """
 
 
@@ -863,18 +921,26 @@ rule download_prscs_ref:
 rule run_prscs:
     """Compute PRS-CS posterior effect-size weights."""
     input:
-        sumstats  = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
-        bim       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
-        script    = "scripts/run_prscs.py",
-        prscs_exe = "resources/prscs/PRScs.py",
-        ref_data  = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
+        sumstats       = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+        bim            = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
+        script         = "scripts/run_prscs.py",
+        prscs_exe      = "resources/prscs/PRScs.py",
+        ref_data       = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
+        grch38_rsid_maps = lambda wc: (
+            expand("resources/1kg_grch38/rsid_map_{chrom}.tsv.gz", chrom=CHROMS)
+            if wc.sim_method == "hapnest_public" else []
+        ),
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
-        ref_dir    = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
-        bim_prefix = "results/plink/{sim_method}/gwas/rep{rep}/merged",
-        n_train    = _n_train,
-        seed       = lambda wc: BASE_SEED + int(wc.rep),
+        ref_dir          = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
+        bim_prefix       = "results/plink/{sim_method}/gwas/rep{rep}/merged",
+        n_train          = _n_train,
+        seed             = lambda wc: BASE_SEED + int(wc.rep),
+        grch38_rsid_args = lambda wc, input: (
+            " ".join(f"--grch38-rsid-map {f}" for f in input.grch38_rsid_maps)
+            if wc.sim_method == "hapnest_public" else ""
+        ),
     log:
         "logs/prscs/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
@@ -889,6 +955,7 @@ rule run_prscs:
             --seed       {params.seed} \
             --prscs-path {input.prscs_exe} \
             --out        {output.betas} \
+            {params.grch38_rsid_args} \
             2> {log}
         """
 
