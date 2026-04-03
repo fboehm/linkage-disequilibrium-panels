@@ -183,7 +183,11 @@ def main():
 
         write_prscs_input(ss, sst_file)
         chroms = ss["CHROM"].unique()
+<<<<<<< HEAD
         run_prscs(args.prscs_path, args.ref_dir, bim_prefix, sst_file,
+=======
+        run_prscs(args.prscs_path, args.ref_dir, args.bim_prefix, sst_file,
+>>>>>>> 23be5d136b7594e0326ba5e2bd8c6781da041ea0
                   args.n_gwas, args.seed, out_prefix, args.phi, chroms)
 
         results = collect_prscs_output(out_prefix, ss)
