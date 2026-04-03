@@ -79,9 +79,11 @@ def write_prscs_input(ss: pd.DataFrame, path: str) -> None:
     out.to_csv(path, sep="\t", index=False)
 
 
-def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefix, phi):
+def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefix, phi,
+              chroms):
     # PRScs treats --out_dir as a full path prefix, not a directory.
     # Output files are named {out_dir}_pst_eff_a1_b0.5_phi{phi}_chr{chrom}.txt
+    chrom_str = ",".join(str(c).lstrip("chr") for c in sorted(chroms))
     cmd = [
         "python3", prscs_path,
         "--ref_dir",    ref_dir,
@@ -90,6 +92,7 @@ def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefi
         "--n_gwas",     str(n_gwas),
         "--seed",       str(seed),
         "--out_dir",    out_prefix,
+        "--chrom",      chrom_str,
     ]
     if phi is not None:
         cmd += ["--phi", str(phi)]
@@ -103,9 +106,9 @@ def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefi
 
 def collect_prscs_output(out_prefix: str, ss: pd.DataFrame) -> pd.DataFrame:
     """Concatenate per-chromosome PRScs output files into a single data frame."""
-    chroms = ss["CHROM"].unique()
+    chroms = [str(c).lstrip("chr") for c in ss["CHROM"].unique()]
     parts = []
-    for chrom in sorted(chroms):
+    for chrom in sorted(chroms, key=int):
         fname = f"{out_prefix}_pst_eff_a1_b0.5_phiauto_chr{chrom}.txt"
         if not os.path.exists(fname):
             print(f"WARNING: {fname} not found, skipping chr{chrom}",
@@ -132,8 +135,9 @@ def main():
         out_prefix = os.path.join(tmpdir, "prscs_out")
 
         write_prscs_input(ss, sst_file)
+        chroms = ss["CHROM"].unique()
         run_prscs(args.prscs_path, args.ref_dir, args.bim_prefix, sst_file,
-                  args.n_gwas, args.seed, out_prefix, args.phi)
+                  args.n_gwas, args.seed, out_prefix, args.phi, chroms)
 
         results = collect_prscs_output(out_prefix, ss)
 
