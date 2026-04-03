@@ -625,7 +625,7 @@ rule merge_and_convert:
     log:
         "logs/merge_convert/{sim_method}_rep{rep}_{cohort}.log",
     resources:
-        mem_mb = 4000,
+        mem_mb = 16000,
     shell:
         """
         module load bcftools/1.19 plink/2.0-alpha
@@ -634,6 +634,7 @@ rule merge_and_convert:
         plink2 \
             --vcf "$TMP_VCF" \
             --make-bed \
+            --memory {resources.mem_mb} \
             --out {params.prefix} \
             2>> {log}
         rm -f "$TMP_VCF"
