@@ -77,20 +77,21 @@ def write_prscs_input(ss: pd.DataFrame, path: str) -> None:
 
 
 def run_prscs(prscs_path, ref_dir, sst_file, n_gwas, seed, out_prefix, phi):
+    # PRScs treats --out_dir as a full path prefix, not a directory.
+    # Output files are named {out_dir}_pst_eff_a1_b0.5_phi{phi}_chr{chrom}.txt
     cmd = [
         "python3", prscs_path,
-        "--ref_dir",   ref_dir,
-        "--bim_prefix", out_prefix,   # PRScs needs a dummy bim; we handle below
-        "--sst_file",   sst_file,
-        "--n_gwas",     str(n_gwas),
-        "--seed",       str(seed),
-        "--out_dir",    os.path.dirname(out_prefix),
-        "--out_name",   os.path.basename(out_prefix),
+        "--ref_dir",  ref_dir,
+        "--sst_file", sst_file,
+        "--n_gwas",   str(n_gwas),
+        "--seed",     str(seed),
+        "--out_dir",  out_prefix,
     ]
     if phi is not None:
         cmd += ["--phi", str(phi)]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
+        print(result.stdout, file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         raise RuntimeError(f"PRScs.py exited with code {result.returncode}")
     print(result.stdout, file=sys.stderr)
