@@ -44,6 +44,9 @@ def parse_args():
                    help="Output TSV: SNP  A1  BETA  CHR  BP")
     p.add_argument("--prscs-path", default="PRScs.py",
                    help="Path to PRScs.py [default: PRScs.py on PATH]")
+    p.add_argument("--bim-prefix", required=True,
+                   help="Path prefix of PLINK .bim file for the target dataset "
+                        "(e.g. results/plink/hapnest_public/gwas/rep1/merged)")
     p.add_argument("--phi",        default=None,
                    help="Global shrinkage parameter phi (None = auto)")
     return p.parse_args()
@@ -76,16 +79,17 @@ def write_prscs_input(ss: pd.DataFrame, path: str) -> None:
     out.to_csv(path, sep="\t", index=False)
 
 
-def run_prscs(prscs_path, ref_dir, sst_file, n_gwas, seed, out_prefix, phi):
+def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefix, phi):
     # PRScs treats --out_dir as a full path prefix, not a directory.
     # Output files are named {out_dir}_pst_eff_a1_b0.5_phi{phi}_chr{chrom}.txt
     cmd = [
         "python3", prscs_path,
-        "--ref_dir",  ref_dir,
-        "--sst_file", sst_file,
-        "--n_gwas",   str(n_gwas),
-        "--seed",     str(seed),
-        "--out_dir",  out_prefix,
+        "--ref_dir",    ref_dir,
+        "--bim_prefix", bim_prefix,
+        "--sst_file",   sst_file,
+        "--n_gwas",     str(n_gwas),
+        "--seed",       str(seed),
+        "--out_dir",    out_prefix,
     ]
     if phi is not None:
         cmd += ["--phi", str(phi)]
@@ -128,7 +132,7 @@ def main():
         out_prefix = os.path.join(tmpdir, "prscs_out")
 
         write_prscs_input(ss, sst_file)
-        run_prscs(args.prscs_path, args.ref_dir, sst_file,
+        run_prscs(args.prscs_path, args.ref_dir, args.bim_prefix, sst_file,
                   args.n_gwas, args.seed, out_prefix, args.phi)
 
         results = collect_prscs_output(out_prefix, ss)

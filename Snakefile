@@ -864,15 +864,17 @@ rule run_prscs:
     """Compute PRS-CS posterior effect-size weights."""
     input:
         sumstats  = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+        bim       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
         script    = "scripts/run_prscs.py",
         prscs_exe = "resources/prscs/PRScs.py",
         ref_data  = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
-        ref_dir = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
-        n_train = _n_train,
-        seed    = lambda wc: BASE_SEED + int(wc.rep),
+        ref_dir    = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
+        bim_prefix = "results/plink/{sim_method}/gwas/rep{rep}/merged",
+        n_train    = _n_train,
+        seed       = lambda wc: BASE_SEED + int(wc.rep),
     log:
         "logs/prscs/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
@@ -882,6 +884,7 @@ rule run_prscs:
         python3 {input.script} \
             --sumstats   {input.sumstats} \
             --ref-dir    {params.ref_dir} \
+            --bim-prefix {params.bim_prefix} \
             --n-gwas     {params.n_train} \
             --seed       {params.seed} \
             --prscs-path {input.prscs_exe} \
