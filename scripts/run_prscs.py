@@ -97,7 +97,7 @@ def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefi
         "--n_gwas",     str(n_gwas),
         "--seed",       str(seed),
         "--out_dir",    out_prefix,
-        "--chrom",      "22",
+        "--chrom",      chrom_str,
     ]
     if phi is not None:
         cmd += ["--phi", str(phi)]
