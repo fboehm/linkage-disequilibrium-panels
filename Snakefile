@@ -372,13 +372,20 @@ rule partition_hapnest_public:
 
 
 rule extract_hapnest_public_vcf:
-    """Extract one cohort from the public PLINK files and export as bgzipped VCF."""
+    """Extract one cohort from the public PLINK files and export as bgzipped VCF.
+
+    After extraction and sample renaming, bcftools annotate adds rsIDs from the
+    1KG GRCh38 lookup table so downstream tools (LDpred2, PRS-CS) can match
+    variants by rsID rather than position.
+    """
     input:
-        bed    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bed".format(wc.chrom.lstrip("chr")),
-        bim    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bim".format(wc.chrom.lstrip("chr")),
-        fam    = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.fam".format(wc.chrom.lstrip("chr")),
-        keep   = "resources/hapnest_public/keep_{cohort}.txt",
-        rename = "resources/hapnest_public/rename_{cohort}.txt",
+        bed      = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bed".format(wc.chrom.lstrip("chr")),
+        bim      = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.bim".format(wc.chrom.lstrip("chr")),
+        fam      = lambda wc: "resources/hapnest_public/raw/synthetic_v1_chr-{}.fam".format(wc.chrom.lstrip("chr")),
+        keep     = "resources/hapnest_public/keep_{cohort}.txt",
+        rename   = "resources/hapnest_public/rename_{cohort}.txt",
+        rsid_map = "resources/1kg_grch38/rsid_map_{chrom}.tsv.gz",
+        rsid_tbi = "resources/1kg_grch38/rsid_map_{chrom}.tsv.gz.tbi",
     output:
         vcf = "results/vcf/hapnest_public/rep1/{cohort}_{chrom}.vcf.gz",
     params:
@@ -404,9 +411,14 @@ rule extract_hapnest_public_vcf:
             2>> {log}
         bcftools reheader \
             --samples {input.rename} \
-            --output  {output.vcf} \
             {params.tmp_prefix}.vcf.gz \
+        | bcftools annotate \
+            --annotations {input.rsid_map} \
+            --columns CHROM,POS,ID,REF,ALT \
+            --output-type z \
+            --output {output.vcf} \
             2>> {log}
+        tabix -p vcf {output.vcf} 2>> {log}
         rm -f {params.tmp_prefix}.vcf.gz {params.tmp_prefix}.log
         """
 
@@ -440,11 +452,11 @@ rule download_1kg_grch38_vcf:
     params:
         vcf_url = lambda wc: (
             KG38_EBI_URL + "/ALL." + wc.chrom +
-            ".shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
+            ".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz"
         ),
         tbi_url = lambda wc: (
             KG38_EBI_URL + "/ALL." + wc.chrom +
-            ".shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz.tbi"
+            ".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz.tbi"
         ),
     log: "logs/download/1kg_grch38_{chrom}.log"
     resources:
@@ -469,6 +481,7 @@ rule make_grch38_rsid_map:
         tbi = "resources/1kg_grch38/ALL.{chrom}.vcf.gz.tbi",
     output:
         tsv = "resources/1kg_grch38/rsid_map_{chrom}.tsv.gz",
+        tbi = "resources/1kg_grch38/rsid_map_{chrom}.tsv.gz.tbi",
     log: "logs/setup/grch38_rsid_map_{chrom}.log"
     shell:
         """
@@ -480,6 +493,7 @@ rule make_grch38_rsid_map:
         | bgzip \
         > {output.tsv} \
         2> {log}
+        tabix -s1 -b2 -e2 {output.tsv} 2>> {log}
         """
 
 

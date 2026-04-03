@@ -138,7 +138,7 @@ df_dummy <- data.frame(
 )
 
 info_ref <- tryCatch(
-  snp_match(df_dummy, map_ref),
+  snp_match(df_dummy, map_ref, join_by_pos = FALSE),
   error = function(e) {
     message("[prepare_ldpred2_ref] snp_match error: ", conditionMessage(e))
     NULL
