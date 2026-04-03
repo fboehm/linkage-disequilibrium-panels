@@ -660,7 +660,7 @@ rule simulate_phenotypes:
     log:
         "logs/phenotypes/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
-        mem_mb = 4000,
+        mem_mb = 24000,
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
@@ -869,7 +869,7 @@ rule run_ldpred2:
     log:
         "logs/ldpred2/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
-        mem_mb = 4000,
+        mem_mb = 24000,
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
