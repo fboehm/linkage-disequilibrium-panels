@@ -1064,16 +1064,45 @@ rule score_test_set:
         """
 
 
-# ── Step 10: Evaluate prediction accuracy ─────────────────────────────────────
+# ── Step 10a: Per-individual posterior PGS variance ───────────────────────────
+
+rule score_pgs_variance:
+    """Compute per-individual posterior PGS variance: Var(PGS_i) = Σ_j BETA_VAR_j * G_ij²."""
+    input:
+        bed      = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
+        betas    = "results/pgs_weights/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
+        test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
+        script   = "scripts/score_pgs_variance.R",
+    output:
+        var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
+    log:
+        "logs/score_var/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
+    resources:
+        mem_mb = 16000,
+    shell:
+        """
+        module load R/4.4.3-gcc-11.2.0-mkl
+        mkdir -p $(dirname {output.var_scores})
+        Rscript {input.script} \
+            --bed      {input.bed} \
+            --betas    {input.betas} \
+            --test-ids {input.test_ids} \
+            --out      {output.var_scores} \
+            2> {log}
+        """
+
+
+# ── Step 10b: Evaluate prediction accuracy ────────────────────────────────────
 
 rule evaluate_pgs:
     """Compute R² (quantitative) or AUC (binary) for the test-set PGS."""
     input:
-        scores   = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores.sscore",
-        pheno    = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
-        test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
-        pcs      = "results/pca/{sim_method}/test/rep{rep}/pcs.sscore",
-        script   = "scripts/evaluate_pgs.R",
+        scores     = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores.sscore",
+        var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
+        pheno      = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
+        test_ids   = "results/splits/{sim_method}/rep{rep}/test.txt",
+        pcs        = "results/pca/{sim_method}/test/rep{rep}/pcs.sscore",
+        script     = "scripts/evaluate_pgs.R",
     output:
         metrics = "results/evaluation/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/metrics.tsv",
     params:
@@ -1085,6 +1114,7 @@ rule evaluate_pgs:
         module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
             --scores     {input.scores} \
+            --var-scores {input.var_scores} \
             --pheno      {input.pheno} \
             --test-ids   {input.test_ids} \
             --covariates {input.pcs} \

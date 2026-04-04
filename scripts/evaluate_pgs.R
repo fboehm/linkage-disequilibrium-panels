@@ -29,6 +29,10 @@ opt_list <- list(
   make_option("--covariates",  type = "character", default = NULL,
               help = "PLINK2 .eigenvec file of PCs (optional). When provided, "
                      "incremental metrics (adjusted for PCs) are also reported."),
+  make_option("--var-scores",  type = "character", default = NULL,
+              help = "TSV with FID IID PGS_VAR (from score_pgs_variance.R). "
+                     "When provided, adds mean/median per-individual PGS "
+                     "posterior variance to the metrics output."),
   make_option("--out",         type = "character",
               help = "Output TSV of accuracy metrics")
 )
@@ -139,6 +143,29 @@ if (opt$`trait-type` == "quantitative") {
   )
   cat(sprintf("[evaluate_pgs] AUC_raw = %.4f  AUC_adj = %.4f  (n_cases = %d, n_controls = %d)\n",
               auc_raw, auc_adj, n1, n0))
+}
+
+# ── Per-individual PGS variance (optional) ───────────────────────────────────
+
+if (!is.null(opt$`var-scores`)) {
+  var_df <- read.table(opt$`var-scores`, header = TRUE)
+  var_df <- merge(var_df, test_ids, by = c("FID", "IID"))
+  var_df <- var_df[!is.na(var_df$PGS_VAR), ]
+  if (nrow(var_df) > 0L) {
+    pgs_var_mean   <- mean(var_df$PGS_VAR)
+    pgs_var_median <- median(var_df$PGS_VAR)
+    cat(sprintf("[evaluate_pgs] PGS posterior variance: mean = %.4g  median = %.4g\n",
+                pgs_var_mean, pgs_var_median))
+    var_rows <- data.frame(
+      metric = c("pgs_var_mean", "pgs_var_median"),
+      value  = c(pgs_var_mean,   pgs_var_median),
+      n      = nrow(var_df)
+    )
+    # Align columns with the main metrics frame before rbinding
+    for (col in setdiff(names(metrics), names(var_rows)))
+      var_rows[[col]] <- NA
+    metrics <- rbind(metrics, var_rows[, names(metrics)])
+  }
 }
 
 # ── Write output ──────────────────────────────────────────────────────────────

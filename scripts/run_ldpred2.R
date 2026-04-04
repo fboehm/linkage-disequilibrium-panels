@@ -234,8 +234,14 @@ cat(sprintf("[ldpred2] %d / %d chains converged\n",
 
 if (!any(converged)) converged[] <- TRUE
 
-beta_mat    <- sapply(multi_auto[converged], `[[`, "beta_est")
-betas_final <- if (is.matrix(beta_mat)) rowMeans(beta_mat) else beta_mat
+beta_mat <- sapply(multi_auto[converged], `[[`, "beta_est")
+if (is.matrix(beta_mat)) {
+  betas_final <- rowMeans(beta_mat)
+  betas_var   <- matrixStats::rowVars(beta_mat)
+} else {
+  betas_final <- beta_mat
+  betas_var   <- rep(NA_real_, length(beta_mat))
+}
 
 h2_final <- mean(sapply(multi_auto[converged], `[[`, "h2_est"))
 p_final  <- mean(sapply(multi_auto[converged], `[[`, "p_est"))
@@ -245,11 +251,12 @@ cat(sprintf("[ldpred2] Final estimates: h2 = %.4f  p_causal = %.5f\n",
 # ── Write per-SNP weights ─────────────────────────────────────────────────────
 
 out_df <- data.frame(
-  SNP  = info_snp$rsid,
-  A1   = info_snp$a1,
-  BETA = betas_final,
-  CHR  = info_snp$chr,
-  BP   = info_snp$pos,
+  SNP      = info_snp$rsid,
+  A1       = info_snp$a1,
+  BETA     = betas_final,
+  BETA_VAR = betas_var,
+  CHR      = info_snp$chr,
+  BP       = info_snp$pos,
   stringsAsFactors = FALSE
 )
 write.table(out_df,

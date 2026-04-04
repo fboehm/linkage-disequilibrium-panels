@@ -100,6 +100,7 @@ def run_prscs(prscs_path, ref_dir, bim_prefix, sst_file, n_gwas, seed, out_prefi
     ]
     if phi is not None:
         cmd += ["--phi", str(phi)]
+    cmd += ["--write_pst", "TRUE"]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(result.stdout, file=sys.stderr)
@@ -179,7 +180,12 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
 
 
 def collect_prscs_output(out_prefix: str, ss: pd.DataFrame) -> pd.DataFrame:
-    """Concatenate per-chromosome PRScs output files into a single data frame."""
+    """Concatenate per-chromosome PRScs output files into a single data frame.
+
+    With --write_pst TRUE the output has 5 fixed columns (CHR SNP BP A1 A2)
+    followed by N posterior-sample columns.  We compute the posterior mean
+    (BETA) and posterior variance (BETA_VAR) across those samples.
+    """
     chroms = [str(c).lstrip("chr") for c in ss["CHROM"].unique()]
     parts = []
     for chrom in sorted(chroms, key=int):
@@ -188,9 +194,17 @@ def collect_prscs_output(out_prefix: str, ss: pd.DataFrame) -> pd.DataFrame:
             print(f"WARNING: {fname} not found, skipping chr{chrom}",
                   file=sys.stderr)
             continue
-        df = pd.read_csv(fname, sep="\t", header=None,
-                         names=["CHR", "SNP", "BP", "A1", "A2", "BETA"])
-        parts.append(df)
+        df = pd.read_csv(fname, sep="\t", header=None)
+        n_fixed = 5
+        sample_cols = [f"_s{i}" for i in range(df.shape[1] - n_fixed)]
+        df.columns = ["CHR", "SNP", "BP", "A1", "A2"] + sample_cols
+        if sample_cols:
+            df["BETA"]     = df[sample_cols].mean(axis=1)
+            df["BETA_VAR"] = df[sample_cols].var(axis=1, ddof=1)
+        else:
+            df["BETA"]     = df.iloc[:, 5]
+            df["BETA_VAR"] = float("nan")
+        parts.append(df[["CHR", "SNP", "BP", "A1", "A2", "BETA", "BETA_VAR"]])
     if not parts:
         raise RuntimeError("No PRScs output files were produced.")
     return pd.concat(parts, ignore_index=True)
@@ -227,7 +241,7 @@ def main():
         results = collect_prscs_output(out_prefix, ss)
 
     results["SNP"] = results["SNP"].map(rsid_to_orig_id).fillna(results["SNP"])
-    out_df = results[["SNP", "A1", "BETA", "CHR", "BP"]]
+    out_df = results[["SNP", "A1", "BETA", "BETA_VAR", "CHR", "BP"]]
     out_df.to_csv(args.out, sep="\t", index=False)
     print(f"[run_prscs] Wrote {len(out_df)} SNP weights to {args.out}",
           file=sys.stderr)
