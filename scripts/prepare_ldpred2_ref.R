@@ -174,7 +174,6 @@ if (!is.null(opt$`hm3-positions`)) {
   hm3_key <- hm3[, .(chrom, pos)]
   info_ref <- as.data.table(info_ref)
   info_ref <- info_ref[hm3_key, on = c("chr" = "chrom", "pos" = "pos"), nomatch = NULL]
-  info_ref <- as.data.frame(info_ref)
   cat(sprintf("[prepare_ldpred2_ref] After HM3 restriction: %d SNPs\n", nrow(info_ref)),
       flush = TRUE)
   if (nrow(info_ref) < 50L)
@@ -227,6 +226,7 @@ info_ref[["sfbm_row"]] <- seq_len(nrow(info_ref))
 cols_to_save <- c("chr", "pos", "a0", "a1", "rsid",
                   "_NUM_ID_", "_FLIP_", "sfbm_row")
 cols_to_save <- intersect(cols_to_save, names(info_ref))
+if (!is.data.table(info_ref)) setDT(info_ref)
 fwrite(info_ref[, cols_to_save, with = FALSE],
        file.path(opt$`out-dir`, "matched_snps.tsv"), sep = "\t")
 
