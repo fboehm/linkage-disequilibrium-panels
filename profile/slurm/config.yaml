@@ -53,9 +53,9 @@ set-resources:
 
   # LD reference computation — most memory-intensive step (SFBM build)
   prepare_ldpred2_ref:
-    mem_mb: 32000
-    runtime: 720      # 12 h
-    cpus_per_task: 6
+    mem_mb: 64000
+    runtime: 1440     # 24 h
+    cpus_per_task: 4
 
   # GWAS — genome-wide linear/logistic regression
   run_gwas:
