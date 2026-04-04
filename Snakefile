@@ -541,10 +541,10 @@ rule write_1kg_sample_ids:
 # ── Step 1e: Extract 1KG super-population and convert to PLINK ───────────────
 
 rule extract_1kg_population:
-    """Subset 1KG VCFs to one super-population and produce PLINK binary files."""
+    """Subset 1KG GRCh38 VCFs to one super-population and produce PLINK binary files."""
     input:
-        vcfs = expand("resources/1kg/ALL.{chrom}.vcf.gz", chrom=CHROMS),
-        tbis = expand("resources/1kg/ALL.{chrom}.vcf.gz.tbi", chrom=CHROMS),
+        vcfs = expand("resources/1kg_grch38/ALL.{chrom}.vcf.gz", chrom=CHROMS),
+        tbis = expand("resources/1kg_grch38/ALL.{chrom}.vcf.gz.tbi", chrom=CHROMS),
         ids  = "resources/panels/{panel_ancestry}/sample_ids.txt",
     output:
         bed = "resources/panels/{panel_ancestry}/merged.bed",
@@ -831,7 +831,7 @@ rule prepare_ldpred2_ref:
         seed     = sim_seed,
     threads: 6
     log: "logs/ldpred2_ref/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
-    resources: mem_mb = 32000
+    resources: mem_mb = 64000
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl

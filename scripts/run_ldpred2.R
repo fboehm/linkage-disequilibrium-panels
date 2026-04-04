@@ -104,7 +104,7 @@ if ("BETA" %in% names(ss)) {
 } else {
   stop("[ldpred2] Cannot find BETA or OR column in summary statistics.")
 }
-ss[, CHROM := as.integer(CHROM)]
+ss[, CHROM := as.integer(sub("^chr", "", CHROM))]
 ss[, POS   := as.integer(POS)]
 
 cat(sprintf("[ldpred2] Summary statistics: %d SNPs after filtering\n", nrow(ss)))
@@ -137,10 +137,10 @@ cat(sprintf("[ldpred2] Effective N: %.1f\n", n_eff))
 # The SFBM rows/columns correspond to matched_snps in sfbm_row order.
 # We merge the current sumstats into this reference order.
 
-ss_key <- ss[, .(rsid = ID, REF, A1, BETA, SE)]
+ss_key <- ss[, .(chr = CHROM, pos = POS, ID, REF, A1, BETA, SE)]
 
-# Merge on rsID
-merged <- matched_snps[ss_key, on = "rsid", nomatch = NA]
+# Merge on chr+pos (works with positional IDs and cross-build data)
+merged <- ss_key[matched_snps, on = c("chr", "pos"), nomatch = NA]
 
 # Determine per-SNP beta after potential allele flip
 # If FLIP == TRUE (stored as 1 in TSV), the panel a0 == ss A1, so negate beta

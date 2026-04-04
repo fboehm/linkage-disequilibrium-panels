@@ -111,7 +111,7 @@ if ("BETA" %in% names(ss)) {
 } else {
   stop("Reference sumstats must have BETA or OR column.")
 }
-ss[, CHROM := as.integer(CHROM)]
+ss[, CHROM := as.integer(sub("^chr", "", CHROM))]
 
 cat(sprintf("[prepare_ldpred2_ref] Reference sumstats: %d SNPs\n", nrow(ss)),
     flush = TRUE)
@@ -138,7 +138,7 @@ df_dummy <- data.frame(
 )
 
 info_ref <- tryCatch(
-  snp_match(df_dummy, map_ref, join_by_pos = FALSE),
+  snp_match(df_dummy, map_ref, join_by_pos = TRUE),
   error = function(e) {
     message("[prepare_ldpred2_ref] snp_match error: ", conditionMessage(e))
     NULL
