@@ -885,11 +885,11 @@ rule prepare_ldpred2_ref:
         matched_snps = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/matched_snps.tsv",
     params:
         out_dir  = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}",
-        window   = 3000000,
-        ncores   = 6,
+        window   = 1000000,
+        ncores   = 4,
         n_panel  = lambda wc: wc.panel_n,
         seed     = sim_seed,
-    threads: 6
+    threads: 4
     log: "logs/ldpred2_ref/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
     resources: mem_mb = 64000
     shell:
