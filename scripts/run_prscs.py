@@ -166,6 +166,7 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
     bim["_rsID"] = [lookup.get((c, b)) for c, b in zip(chr_col, bp_col)]
     bim = bim[bim["_rsID"].notna()].copy()
     bim["SNP"] = bim["_rsID"]
+    bim["CHR"] = chr_col[bim.index]
     bim.drop(columns=["_rsID"], inplace=True)
 
     new_bim_prefix = os.path.join(tmpdir, "rsid_bim")
