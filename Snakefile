@@ -805,7 +805,7 @@ rule project_pca_test:
     params:
         bed_prefix     = lambda wc, input: input.bed[:-4],
         score_prefix   = "results/pca/{sim_method}/test/rep{rep}/pcs",
-        score_col_end  = 5 + N_PCS,
+        score_col_end  = 6 + N_PCS,
     log: "logs/pca/{sim_method}_test_rep{rep}.log"
     resources: mem_mb = 4000
     shell:
@@ -815,8 +815,8 @@ rule project_pca_test:
         plink2 \
             --bfile          {params.bed_prefix} \
             --keep           {input.test_ids} \
-            --score          {input.eigenvec_allele} 2 5 header-read \
-            --score-col-nums 6-{params.score_col_end} \
+            --score          {input.eigenvec_allele} 2 6 header-read \
+            --score-col-nums 7-{params.score_col_end} \
             --out            {params.score_prefix} \
             2> {log}
         """
