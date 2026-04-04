@@ -109,6 +109,12 @@ ss[, POS   := as.integer(POS)]
 
 cat(sprintf("[ldpred2] Summary statistics: %d SNPs after filtering\n", nrow(ss)))
 
+# ── Restrict to HM3 SNPs ──────────────────────────────────────────────────────
+# matched_snps defines the HM3 reference set; inner-join to keep only those SNPs.
+hm3_pos <- matched_snps[, .(chr, pos)]
+ss <- ss[hm3_pos, on = c("CHROM" = "chr", "POS" = "pos"), nomatch = NULL]
+cat(sprintf("[ldpred2] After HM3 restriction: %d SNPs\n", nrow(ss)))
+
 # ── Effective sample size ─────────────────────────────────────────────────────
 
 if (opt$`trait-type` == "binary") {
