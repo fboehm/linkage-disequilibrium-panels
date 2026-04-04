@@ -191,9 +191,8 @@ info_snp <- data.frame(
 # ── LD score regression for h2 initialisation ────────────────────────────────
 
 cat("[ldpred2] Running LDSC for h2 initialisation ...\n")
-ld_scores <- bigsparser::sp_colSumsSq(corr)
-
-ldsc_res <- tryCatch(
+ldsc_res <- tryCatch({
+  ld_scores <- Matrix::colSums(corr^2)
   with(info_snp,
        snp_ldsc(
          ld_score    = ld_scores,
@@ -203,12 +202,12 @@ ldsc_res <- tryCatch(
          blocks      = NULL,
          intercept   = NULL
        )
-  ),
-  error = function(e) {
-    message("[ldpred2] LDSC failed (", conditionMessage(e), "); using h2_init = 0.1")
-    list(h2 = 0.1)
-  }
-)
+  )
+},
+error = function(e) {
+  message("[ldpred2] LDSC failed (", conditionMessage(e), "); using h2_init = 0.1")
+  list(h2 = 0.1)
+})
 h2_init <- max(ldsc_res[["h2"]], 1e-4)
 cat(sprintf("[ldpred2] LDSC h2 estimate: %.4f  (used as init)\n", h2_init))
 
