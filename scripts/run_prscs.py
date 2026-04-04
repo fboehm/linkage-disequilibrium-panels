@@ -119,7 +119,8 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
       HapMap3 GRCh38 sites table (pos_hg38 from map_hm3_ldpred2.rds), then keep only
       rsIDs present in the snpinfo.
 
-    Returns (updated_ss, new_bim_prefix).
+    Returns (updated_ss, new_bim_prefix, rsid_to_orig_id) where rsid_to_orig_id is a
+    dict mapping rsID → original BIM SNP ID, used to restore original IDs in output.
     """
     snpinfo_path = os.path.join(ref_dir, "snpinfo_1kg_hm3")
     snpinfo = pd.read_csv(snpinfo_path, sep="\t", low_memory=False)
@@ -165,6 +166,7 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
     bp_col  = bim["BP"].astype(int)
     bim["_rsID"] = [lookup.get((c, b)) for c, b in zip(chr_col, bp_col)]
     bim = bim[bim["_rsID"].notna()].copy()
+    rsid_to_orig_id = dict(zip(bim["_rsID"], bim["SNP"]))
     bim["SNP"] = bim["_rsID"]
     bim["CHR"] = chr_col[bim.index]
     bim.drop(columns=["_rsID"], inplace=True)
@@ -173,7 +175,7 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
     bim.to_csv(f"{new_bim_prefix}.bim", sep="\t", header=False, index=False)
     print(f"[run_prscs] {len(bim)} bim SNPs mapped to rsIDs", file=sys.stderr)
 
-    return ss, new_bim_prefix
+    return ss, new_bim_prefix, rsid_to_orig_id
 
 
 def collect_prscs_output(out_prefix: str, ss: pd.DataFrame) -> pd.DataFrame:
@@ -203,8 +205,8 @@ def main():
           file=sys.stderr)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        ss, bim_prefix = remap_to_rsids(ss, args.ref_dir, args.bim_prefix, tmpdir,
-                                        hm3_grch38=args.hm3_grch38)
+        ss, bim_prefix, rsid_to_orig_id = remap_to_rsids(ss, args.ref_dir, args.bim_prefix,
+                                                         tmpdir, hm3_grch38=args.hm3_grch38)
         print(f"[run_prscs] {len(ss)} SNPs remaining after rsID mapping",
               file=sys.stderr)
         if len(ss) == 0:
@@ -224,6 +226,7 @@ def main():
 
         results = collect_prscs_output(out_prefix, ss)
 
+    results["SNP"] = results["SNP"].map(rsid_to_orig_id).fillna(results["SNP"])
     out_df = results[["SNP", "A1", "BETA", "CHR", "BP"]]
     out_df.to_csv(args.out, sep="\t", index=False)
     print(f"[run_prscs] Wrote {len(out_df)} SNP weights to {args.out}",
