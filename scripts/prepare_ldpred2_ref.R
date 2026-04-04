@@ -43,9 +43,7 @@ opt_list <- list(
   make_option("--seed",         type = "integer",  default = 42L,
               help = "Random seed for individual subsampling [default: 42]"),
   make_option("--hm3-positions", type = "character", default = NULL,
-              help = "TSV with HM3 SNP positions: chrom pos (and optionally rsid a0 a1). "
-              "When provided, the matched SNP set is restricted to HM3 positions before "
-              "computing the LD matrix.")
+              help = "TSV with HM3 SNP positions: chrom pos (and optionally rsid a0 a1). When provided, the matched SNP set is restricted to HM3 positions before computing the LD matrix.")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
