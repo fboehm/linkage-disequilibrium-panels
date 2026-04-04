@@ -225,25 +225,40 @@ rule collect_all_metrics:
 
 # ── Step 1a-i: Download HapMap3 SNP positions ────────────────────────────────
 
+rule download_hm3_ldpred2_rds:
+    """Download the full LDpred2 HapMap3 map RDS from figshare.
+    This file includes pos_hg38 alongside GRCh37 pos, used by extract_hm3_grch38_sites.
+    Figshare item 13034123, file 25503788 (Privé et al. LDpred2 paper).
+    """
+    output:
+        rds = "resources/map_hm3_ldpred2.rds",
+    log: "logs/download/map_hm3_ldpred2.log"
+    shell:
+        """
+        mkdir -p resources
+        wget -q -O {output.rds} "https://ndownloader.figshare.com/files/25503788" 2> {log}
+        """
+
+
 rule download_hapmap3_sites:
-    """Download HapMap3 Phase 3 SNP positions (GRCh37) and the full LDpred2 map RDS.
+    """Download HapMap3 Phase 3 SNP positions (GRCh37) used by simulate_msprime.
     Source: Privé et al. LDpred2 tutorial data (figshare).
-    The RDS (map_hm3_ldpred2.rds) is also saved so extract_hm3_grch38_sites can use it.
+    Note: only needed when sim_methods includes msprime.
     """
     output:
         tsv = config["hapmap3_sites_file"],
-        rds = "resources/map_hm3_ldpred2.rds",
     log: "logs/download/hapmap3_sites.log"
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
         mkdir -p $(dirname {output.tsv})
         Rscript -e "
-          download.file('https://figshare.com/ndownloader/files/36360325',
-                        '{output.rds}', quiet = TRUE)
-          map <- readRDS('{output.rds}')
+          tmp <- tempfile(fileext = '.rds')
+          download.file('https://figshare.com/ndownloader/files/36360325', tmp, quiet = TRUE)
+          map <- readRDS(tmp)
           write.table(data.frame(chrom = map[['chr']], pos = map[['pos']]),
                       '{output.tsv}', sep = '\\t', quote = FALSE, row.names = FALSE)
+          unlink(tmp)
         " 2> {log}
         """
 
