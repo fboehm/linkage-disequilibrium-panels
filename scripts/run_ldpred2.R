@@ -77,9 +77,9 @@ msnps_file <- file.path(ref_dir, "matched_snps.tsv")
 if (!file.exists(msnps_file))
   stop("matched_snps.tsv not found in --ref-dir: ", ref_dir)
 matched_snps <- fread(msnps_file)
-setnames(matched_snps,
-         intersect(c("_NUM_ID_", "_FLIP_"), names(matched_snps)),
-         intersect(c("NUM_ID",   "FLIP"),   c("NUM_ID", "FLIP")))
+rename_map <- c("_NUM_ID_" = "NUM_ID", "_FLIP_" = "FLIP")
+old_nm <- intersect(names(rename_map), names(matched_snps))
+if (length(old_nm) > 0) setnames(matched_snps, old_nm, rename_map[old_nm])
 # Keep only needed columns
 if (!"sfbm_row" %in% names(matched_snps))
   stop("matched_snps.tsv is missing the sfbm_row column.")
