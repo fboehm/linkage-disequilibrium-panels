@@ -48,9 +48,14 @@ if (length(missing_args) > 0)
 
 # ── Read data ─────────────────────────────────────────────────────────────────
 
-# plink2 .sscore: #FID IID ALLELE_CT NAMED_ALLELE_DOSAGE_SUM SCORE1_AVG
+# plink2 .sscore: #FID IID ALLELE_CT NAMED_ALLELE_DOSAGE_SUM SCORE1_AVG (or SCORE1_SUM/SCORE1)
 scores <- read.table(opt$scores, header = TRUE, check.names = FALSE)
 colnames(scores)[1] <- "FID"           # strip leading '#'
+score_col <- intersect(c("SCORE1_AVG", "SCORE1_SUM", "SCORE1"), colnames(scores))
+if (length(score_col) == 0L)
+  stop("Cannot find score column in .sscore file. Columns: ",
+       paste(colnames(scores), collapse = ", "))
+colnames(scores)[colnames(scores) == score_col[1]] <- "SCORE1_AVG"
 scores <- scores[, c("FID", "IID", "SCORE1_AVG"), drop = FALSE]
 
 pheno <- read.table(opt$pheno, header = TRUE)   # FID IID Y
