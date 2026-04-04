@@ -248,6 +248,8 @@ if (is.matrix(beta_mat)) {
   betas_var   <- rep(NA_real_, length(beta_mat))
 }
 
+betas_final[is.na(betas_final)] <- 0
+
 h2_final <- mean(sapply(multi_auto[converged], `[[`, "h2_est"))
 p_final  <- mean(sapply(multi_auto[converged], `[[`, "p_est"))
 cat(sprintf("[ldpred2] Final estimates: h2 = %.4f  p_causal = %.5f\n",
