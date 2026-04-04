@@ -1065,13 +1065,22 @@ rule score_test_set:
         """
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.sscore})
+        TMP_BED=$(mktemp -d)/renamed
         plink2 \
-            --bfile   {params.bed_prefix} \
+            --bfile                {params.bed_prefix} \
+            --set-missing-var-ids  '@:#:$r:$a' \
+            --new-id-max-allele-len 1000 \
+            --make-bed \
+            --out                  "$TMP_BED" \
+            2> {log}
+        plink2 \
+            --bfile   "$TMP_BED" \
             --keep    {input.test_ids} \
             --score   {input.betas} 1 2 3 header \
             --threads 1 \
             --out     {params.score_prefix} \
-            2> {log}
+            2>> {log}
+        rm -rf "$(dirname $TMP_BED)"
         """
 
 

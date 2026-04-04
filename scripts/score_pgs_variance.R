@@ -69,6 +69,9 @@ setnames(map,
          c("chromosome", "marker.ID", "genetic.dist",
            "physical.pos", "allele1", "allele2"),
          c("chr", "rsid", "cm", "pos", "a1", "a0"))
+map[, chr := as.integer(sub("^chr", "", chr))]
+map[rsid == "." | is.na(rsid),
+    rsid := paste0(chr, ":", pos, ":", a0, ":", a1)]
 
 fam <- setDT(obj$fam)
 # plink .fam columns: family.ID sample.ID paternal maternal sex affection

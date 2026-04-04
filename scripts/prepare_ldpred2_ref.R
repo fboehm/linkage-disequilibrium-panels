@@ -77,6 +77,9 @@ setnames(map_panel,
            "physical.pos", "allele1", "allele2"),
          c("chr", "rsid", "cm", "pos", "a1", "a0"))
 map_panel[, chr := as.integer(sub("^chr", "", chr))]
+# HapNest public .bim files use "." as marker ID; replace with positional IDs.
+map_panel[rsid == "." | is.na(rsid),
+          rsid := paste0(chr, ":", pos, ":", a0, ":", a1)]
 
 cat(sprintf("[prepare_ldpred2_ref] Panel: %d individuals × %d SNPs\n",
             nrow(G_panel), ncol(G_panel)), flush = TRUE)
