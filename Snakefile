@@ -69,6 +69,17 @@ PRSCS_POP = {
     "AMR_1kg":         "amr",
     "oracle":          "amr",
 }
+# PRScs.py checks os.path.basename(ref_dir) for '1kg' or 'ukbb' before loading
+# the reference — directories that don't match either string leave ref_dict
+# unbound and cause an UnboundLocalError.  Map every panel_ancestry to a ref
+# directory whose basename contains '1kg'.
+PRSCS_REF_DIR = {
+    "matched_admixed": "AMR_1kg",
+    "EUR_1kg":         "EUR_1kg",
+    "AFR_1kg":         "AFR_1kg",
+    "AMR_1kg":         "AMR_1kg",
+    "oracle":          "AMR_1kg",
+}
 PRSCS_REF_URLS = config.get("prscs_ref_urls", {})
 
 PANEL_SIZES      = config.get("panel_sizes",
@@ -989,12 +1000,12 @@ rule run_prscs:
         bim        = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
         script     = "scripts/run_prscs.py",
         prscs_exe  = "resources/prscs/PRScs.py",
-        ref_data   = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
+        ref_data   = lambda wc: "resources/prscs_ref/" + PRSCS_REF_DIR[wc.panel_ancestry] + "/snpinfo_1kg_hm3",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv" if wc.sim_method == "hapnest_public" else [],
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
-        ref_dir        = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
+        ref_dir        = lambda wc: "resources/prscs_ref/" + PRSCS_REF_DIR[wc.panel_ancestry],
         bim_prefix     = "results/plink/{sim_method}/gwas/rep{rep}/merged",
         n_train        = _n_train,
         seed           = lambda wc: BASE_SEED + int(wc.rep),
