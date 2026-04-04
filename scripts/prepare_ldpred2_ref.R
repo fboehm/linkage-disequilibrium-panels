@@ -81,8 +81,7 @@ cat(sprintf("[prepare_ldpred2_ref] Panel: %d individuals × %d SNPs\n",
 
 # ── Optional individual subsampling ───────────────────────────────────────────
 # When --n-panel is set and smaller than the full panel, randomly subsample
-# that many individuals. The ind_row vector is passed to snp_cor so no new
-# FBM needs to be created.
+# that many individuals.
 
 n_avail <- nrow(G_panel)
 if (!is.null(opt$`n-panel`) && as.integer(opt$`n-panel`) < n_avail) {
@@ -92,6 +91,19 @@ if (!is.null(opt$`n-panel`) && as.integer(opt$`n-panel`) < n_avail) {
               length(ind_row), n_avail, opt$seed), flush = TRUE)
 } else {
   ind_row <- seq_len(n_avail)
+}
+
+# When the subsample is smaller than the full panel, copy only those rows into
+# a new FBM before running snp_cor.  snp_cor reads every row of the FBM even
+# when ind.row is small, so keeping the full 10K-individual matrix in the
+# backing file wastes memory proportional to n_avail, not n_panel.
+if (length(ind_row) < n_avail) {
+  bk_sub  <- paste0(bk_path, "_sub")
+  G_panel <- bigstatsr::big_copy(G_panel, ind.row = ind_row,
+                                 backingfile = bk_sub)
+  ind_row <- bigstatsr::rows_along(G_panel)
+  cat(sprintf("[prepare_ldpred2_ref] Copied subsetted FBM: %d × %d\n",
+              nrow(G_panel), ncol(G_panel)), flush = TRUE)
 }
 
 # ── 2. Match reference sumstats to panel ──────────────────────────────────────
