@@ -879,19 +879,29 @@ rule prepare_ldpred2_ref:
         fam          = lambda wc: panel_bed(wc)[:-4] + ".fam",
         ref_sumstats = _ref_sumstats,
         script       = "scripts/prepare_ldpred2_ref.R",
+        hm3_pos      = lambda wc: (
+            "resources/hapmap3_sites_grch38.tsv"
+            if wc.sim_method == "hapnest_public"
+            else "resources/map_hm3_ldpred2.rds"
+        ),
     output:
         sfbm         = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ld_sfbm.sbk",
         sfbm_rds     = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ld_sfbm.rds",
         matched_snps = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/matched_snps.tsv",
     params:
-        out_dir  = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}",
-        window   = 1000000,
-        ncores   = 4,
-        n_panel  = lambda wc: wc.panel_n,
-        seed     = sim_seed,
+        out_dir      = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}",
+        window       = 1000000,
+        ncores       = 4,
+        n_panel      = lambda wc: wc.panel_n,
+        seed         = sim_seed,
+        hm3_pos_arg  = lambda wc, input: (
+            f"--hm3-positions {input.hm3_pos}"
+            if wc.sim_method == "hapnest_public"
+            else ""
+        ),
     threads: 4
     log: "logs/ldpred2_ref/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
-    resources: mem_mb = 64000
+    resources: mem_mb = 32000
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
@@ -904,6 +914,7 @@ rule prepare_ldpred2_ref:
             --ncores       {params.ncores} \
             --n-panel      {params.n_panel} \
             --seed         {params.seed} \
+            {params.hm3_pos_arg} \
             2> {log}
         """
 

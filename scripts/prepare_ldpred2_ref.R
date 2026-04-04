@@ -41,7 +41,11 @@ opt_list <- list(
   make_option("--n-panel",      type = "integer",  default = NULL,
               help = "Number of panel individuals to subsample (NULL = use all)"),
   make_option("--seed",         type = "integer",  default = 42L,
-              help = "Random seed for individual subsampling [default: 42]")
+              help = "Random seed for individual subsampling [default: 42]"),
+  make_option("--hm3-positions", type = "character", default = NULL,
+              help = "TSV with HM3 SNP positions: chrom pos (and optionally rsid a0 a1). "
+              "When provided, the matched SNP set is restricted to HM3 positions before "
+              "computing the LD matrix.")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -163,6 +167,22 @@ if (is.null(info_ref) || nrow(info_ref) < 50L)
 
 cat(sprintf("[prepare_ldpred2_ref] Matched %d SNPs\n", nrow(info_ref)),
     flush = TRUE)
+
+# ── 2b. Restrict to HM3 SNPs (optional) ──────────────────────────────────────
+if (!is.null(opt$`hm3-positions`)) {
+  hm3 <- fread(opt$`hm3-positions`, data.table = TRUE)
+  hm3[, chrom := as.integer(sub("^chr", "", chrom))]
+  hm3[, pos   := as.integer(pos)]
+  hm3_key <- hm3[, .(chrom, pos)]
+  info_ref <- as.data.table(info_ref)
+  info_ref <- info_ref[hm3_key, on = c("chr" = "chrom", "pos" = "pos"), nomatch = NULL]
+  info_ref <- as.data.frame(info_ref)
+  cat(sprintf("[prepare_ldpred2_ref] After HM3 restriction: %d SNPs\n", nrow(info_ref)),
+      flush = TRUE)
+  if (nrow(info_ref) < 50L)
+    stop("[prepare_ldpred2_ref] Fewer than 50 SNPs after HM3 restriction. ",
+         "Check that --hm3-positions covers the correct genome build and chromosomes.")
+}
 
 # ── 3. Compute sparse LD matrix (SFBM) ────────────────────────────────────────
 
