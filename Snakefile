@@ -226,23 +226,23 @@ rule collect_all_metrics:
 # ── Step 1a-i: Download HapMap3 SNP positions ────────────────────────────────
 
 rule download_hapmap3_sites:
-    """Download HapMap3 Phase 3 SNP positions (GRCh37) used by simulate_msprime.
+    """Download HapMap3 Phase 3 SNP positions (GRCh37) and the full LDpred2 map RDS.
     Source: Privé et al. LDpred2 tutorial data (figshare).
-    Note: only needed when sim_methods includes msprime.
+    The RDS (map_hm3_ldpred2.rds) is also saved so extract_hm3_grch38_sites can use it.
     """
     output:
         tsv = config["hapmap3_sites_file"],
+        rds = "resources/map_hm3_ldpred2.rds",
     log: "logs/download/hapmap3_sites.log"
     shell:
         """
         mkdir -p $(dirname {output.tsv})
         Rscript -e "
-          tmp <- tempfile(fileext = '.rds')
-          download.file('https://figshare.com/ndownloader/files/36360325', tmp, quiet = TRUE)
-          map <- readRDS(tmp)
+          download.file('https://figshare.com/ndownloader/files/36360325',
+                        '{output.rds}', quiet = TRUE)
+          map <- readRDS('{output.rds}')
           write.table(data.frame(chrom = map[['chr']], pos = map[['pos']]),
                       '{output.tsv}', sep = '\\t', quote = FALSE, row.names = FALSE)
-          unlink(tmp)
         " 2> {log}
         """
 
