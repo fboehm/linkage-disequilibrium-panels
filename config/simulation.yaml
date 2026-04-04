@@ -130,7 +130,7 @@ prscs_ref_urls:
   amr: "https://www.dropbox.com/s/uv5ydr4uv528lca/ldblk_1kg_amr.tar.gz?dl=1"
 
 # Number of PCs to include as GWAS covariates (and in the evaluation models).
-n_pcs: 10
+n_pcs: 20
 
 # EBI FTP base URL for 1KG Phase 3 phased VCFs.
 kg3_ebi_url: "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502"

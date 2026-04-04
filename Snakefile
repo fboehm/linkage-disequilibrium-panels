@@ -236,6 +236,7 @@ rule download_hapmap3_sites:
     log: "logs/download/hapmap3_sites.log"
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         mkdir -p $(dirname {output.tsv})
         Rscript -e "
           download.file('https://figshare.com/ndownloader/files/36360325',
@@ -261,6 +262,7 @@ rule extract_hm3_grch38_sites:
     log: "logs/setup/extract_hm3_grch38.log"
     shell:
         """
+        module load R/4.4.3-gcc-11.2.0-mkl
         Rscript -e "
           info <- readRDS('{input.rds}')
           out  <- data.frame(chrom = info[['chr']],
@@ -742,8 +744,9 @@ rule run_pca_gwas:
         bed       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
         train_ids = "results/splits/{sim_method}/rep{rep}/train.txt",
     output:
-        eigenvec = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
-        eigenval = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenval",
+        eigenvec       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
+        eigenval       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenval",
+        eigenvec_allele = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec.allele",
     params:
         prefix     = "results/pca/{sim_method}/gwas/rep{rep}/pcs",
         bed_prefix = lambda wc, input: input.bed[:-4],
@@ -757,7 +760,7 @@ rule run_pca_gwas:
         plink2 \
             --bfile {params.bed_prefix} \
             --keep  {input.train_ids} \
-            --pca   {params.n_pcs} \
+            --pca   {params.n_pcs} allele-wts \
             --out   {params.prefix} \
             2> {log}
         """
@@ -768,14 +771,15 @@ rule run_pca_gwas:
 rule project_pca_test:
     """Project held-out test individuals onto training-set PC axes."""
     input:
-        bed       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
-        test_ids  = "results/splits/{sim_method}/rep{rep}/test.txt",
-        eigenvec  = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
+        bed             = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
+        test_ids        = "results/splits/{sim_method}/rep{rep}/test.txt",
+        eigenvec_allele = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec.allele",
     output:
         scores = "results/pca/{sim_method}/test/rep{rep}/pcs.sscore",
     params:
-        bed_prefix   = lambda wc, input: input.bed[:-4],
-        score_prefix = "results/pca/{sim_method}/test/rep{rep}/pcs",
+        bed_prefix     = lambda wc, input: input.bed[:-4],
+        score_prefix   = "results/pca/{sim_method}/test/rep{rep}/pcs",
+        score_col_end  = 5 + N_PCS,
     log: "logs/pca/{sim_method}_test_rep{rep}.log"
     resources: mem_mb = 4000
     shell:
@@ -783,10 +787,11 @@ rule project_pca_test:
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.scores})
         plink2 \
-            --bfile  {params.bed_prefix} \
-            --keep   {input.test_ids} \
-            --score  {input.eigenvec} 1 2 header \
-            --out    {params.score_prefix} \
+            --bfile          {params.bed_prefix} \
+            --keep           {input.test_ids} \
+            --score          {input.eigenvec_allele} 2 5 header-read \
+            --score-col-nums 6-{params.score_col_end} \
+            --out            {params.score_prefix} \
             2> {log}
         """
 
