@@ -1019,6 +1019,7 @@ rule run_prscs:
         mem_mb = 4000,
     shell:
         """
+        module load python/3.12
         python3 {input.script} \
             --sumstats   {input.sumstats} \
             --ref-dir    {params.ref_dir} \
