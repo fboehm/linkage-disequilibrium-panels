@@ -97,6 +97,18 @@ if (n_na > 0) {
 }
 cat(sprintf("[score_pgs_variance] %d SNPs with valid BETA_VAR\n", nrow(betas)))
 
+if (nrow(betas) == 0L) {
+  cat("[score_pgs_variance] No SNPs with valid BETA_VAR; writing NA variance.\n")
+  out_df <- data.table(
+    FID     = fam$FID[ind_row],
+    IID     = fam$IID[ind_row],
+    PGS_VAR = NA_real_
+  )
+  fwrite(out_df, opt$out, sep = "\t")
+  cat(sprintf("[score_pgs_variance] Wrote %d rows to: %s\n", nrow(out_df), opt$out))
+  quit(save = "no", status = 0L)
+}
+
 # ── Match SNPs to BED map ────────────────────────────────────────────────────
 ind_col <- match(betas$SNP, map$rsid)
 n_miss  <- sum(is.na(ind_col))
@@ -106,6 +118,18 @@ if (n_miss > 0) {
   ind_col <- ind_col[!is.na(ind_col)]
 }
 cat(sprintf("[score_pgs_variance] %d SNPs matched to BED\n", length(ind_col)))
+
+if (length(ind_col) == 0L) {
+  cat("[score_pgs_variance] No SNPs matched to BED; writing NA variance.\n")
+  out_df <- data.table(
+    FID     = fam$FID[ind_row],
+    IID     = fam$IID[ind_row],
+    PGS_VAR = NA_real_
+  )
+  fwrite(out_df, opt$out, sep = "\t")
+  cat(sprintf("[score_pgs_variance] Wrote %d rows to: %s\n", nrow(out_df), opt$out))
+  quit(save = "no", status = 0L)
+}
 
 # Build a full-length vector so big_apply can index by FBM column index
 beta_var_by_col           <- rep(0.0, ncol(G))
