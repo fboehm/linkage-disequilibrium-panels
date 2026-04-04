@@ -191,7 +191,7 @@ info_snp <- data.frame(
 # ── LD score regression for h2 initialisation ────────────────────────────────
 
 cat("[ldpred2] Running LDSC for h2 initialisation ...\n")
-ld_scores <- Matrix::colSums(corr^2)
+ld_scores <- bigsparser::sp_colSumsSq(corr)
 
 ldsc_res <- tryCatch(
   with(info_snp,
