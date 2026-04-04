@@ -593,7 +593,7 @@ rule extract_1kg_population:
         TMP_VCF=$(mktemp --tmpdir=$(dirname {output.bed}) --suffix=.vcf.gz)
         # Subset to super-population samples, then convert to PLINK
         bcftools concat --allow-overlaps {input.vcfs} --output-type u 2> {log} | \
-        bcftools view --samples-file {input.ids} --output-type z -o "$TMP_VCF" 2>> {log}
+        bcftools view --samples-file {input.ids} --force-samples --output-type z -o "$TMP_VCF" 2>> {log}
         plink2 \
             --vcf         "$TMP_VCF" \
             --make-bed \
