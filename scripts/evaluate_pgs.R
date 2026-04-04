@@ -27,12 +27,9 @@ opt_list <- list(
   make_option("--trait-type",  type = "character",
               help = "quantitative | binary"),
   make_option("--covariates",  type = "character", default = NULL,
-              help = "PLINK2 .eigenvec file of PCs (optional). When provided, "
-                     "incremental metrics (adjusted for PCs) are also reported."),
+              help = "PLINK2 .eigenvec file of PCs (optional). When provided, incremental metrics (adjusted for PCs) are also reported."),
   make_option("--var-scores",  type = "character", default = NULL,
-              help = "TSV with FID IID PGS_VAR (from score_pgs_variance.R). "
-                     "When provided, adds mean/median per-individual PGS "
-                     "posterior variance to the metrics output."),
+              help = "TSV with FID IID PGS_VAR (from score_pgs_variance.R). When provided, adds mean/median per-individual PGS posterior variance to the metrics output."),
   make_option("--out",         type = "character",
               help = "Output TSV of accuracy metrics")
 )
