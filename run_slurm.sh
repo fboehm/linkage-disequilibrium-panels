@@ -12,11 +12,12 @@
 set -euo pipefail
 
 # ── Environment ────────────────────────────────────────────────────────────────
+# Initialize conda before loading any modules so that module load snakemake
+# can call conda deactivate/activate without hitting an uninitialised shell.
+source "$(conda info --base)/etc/profile.d/conda.sh"
+
 # Update the module name below if needed: run `module avail snakemake` to check.
 module load snakemake
-
-# Initialize conda for non-interactive shells (needed when running as a script).
-source "$(conda info --base)/etc/profile.d/conda.sh"
 
 cd /scratch/jacks.local/frederick.boehm/linkage-disequilibrium-panels
 
