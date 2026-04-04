@@ -247,6 +247,35 @@ rule download_hapmap3_sites:
         """
 
 
+rule extract_hm3_grch38_sites:
+    """Extract HapMap3 SNP positions on GRCh38 from the LDpred2 map RDS.
+
+    The map_hm3_ldpred2.rds published by Privé et al. includes a pos_hg38 column
+    alongside the GRCh37 pos column. This rule writes chrom, pos_hg38, rsid, a0,
+    a1 to a TSV used by run_prscs.py when processing GRCh38 data (hapnest_public).
+    """
+    input:
+        rds = "resources/map_hm3_ldpred2.rds",
+    output:
+        tsv = "resources/hapmap3_sites_grch38.tsv",
+    log: "logs/setup/extract_hm3_grch38.log"
+    shell:
+        """
+        Rscript -e "
+          info <- readRDS('{input.rds}')
+          out  <- data.frame(chrom = info[['chr']],
+                             pos   = as.integer(info[['pos_hg38']]),
+                             rsid  = info[['rsid']],
+                             a0    = info[['a0']],
+                             a1    = info[['a1']])
+          out <- out[!is.na(out[['pos']]) & out[['pos']] > 0, ]
+          out <- out[order(out[['chrom']], out[['pos']]), ]
+          write.table(out, '{output.tsv}', sep='\\t', row.names=FALSE, quote=FALSE)
+          cat(sprintf('[extract_hm3_grch38] wrote %d SNPs\\n', nrow(out)))
+        " > {log} 2>&1
+        """
+
+
 # ── Step 1a: Download 1KG Phase 3 genetic maps ────────────────────────────────
 
 rule download_genetic_map:
@@ -936,24 +965,21 @@ rule download_prscs_ref:
 rule run_prscs:
     """Compute PRS-CS posterior effect-size weights."""
     input:
-        sumstats       = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
-        bim            = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
-        script         = "scripts/run_prscs.py",
-        prscs_exe      = "resources/prscs/PRScs.py",
-        ref_data       = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
-        grch38_rsid_maps = lambda wc: (
-            expand("resources/1kg_grch38/rsid_map_{chrom}.tsv.gz", chrom=CHROMS)
-            if wc.sim_method == "hapnest_public" else []
-        ),
+        sumstats   = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+        bim        = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
+        script     = "scripts/run_prscs.py",
+        prscs_exe  = "resources/prscs/PRScs.py",
+        ref_data   = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed") + "/snpinfo_1kg_hm3",
+        hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv" if wc.sim_method == "hapnest_public" else [],
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
-        ref_dir          = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
-        bim_prefix       = "results/plink/{sim_method}/gwas/rep{rep}/merged",
-        n_train          = _n_train,
-        seed             = lambda wc: BASE_SEED + int(wc.rep),
-        grch38_rsid_args = lambda wc, input: (
-            " ".join(f"--grch38-rsid-map {f}" for f in input.grch38_rsid_maps)
+        ref_dir        = lambda wc: "resources/prscs_ref/" + (wc.panel_ancestry if wc.panel_ancestry != "oracle" else "matched_admixed"),
+        bim_prefix     = "results/plink/{sim_method}/gwas/rep{rep}/merged",
+        n_train        = _n_train,
+        seed           = lambda wc: BASE_SEED + int(wc.rep),
+        hm3_grch38_arg = lambda wc, input: (
+            f"--hm3-grch38 {input.hm3_grch38}"
             if wc.sim_method == "hapnest_public" else ""
         ),
     log:
@@ -970,7 +996,7 @@ rule run_prscs:
             --seed       {params.seed} \
             --prscs-path {input.prscs_exe} \
             --out        {output.betas} \
-            {params.grch38_rsid_args} \
+            {params.hm3_grch38_arg} \
             2> {log}
         """
 
