@@ -953,7 +953,7 @@ rule run_ldpred2:
             --n-train    {params.n_train} \
             --seed       {params.seed} \
             --out        {output.betas} \
-            2> {log}
+            > {log} 2>&1
         """
 
 
