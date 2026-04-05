@@ -48,6 +48,7 @@ if (length(missing_args) > 0)
 
 # ── Read data ─────────────────────────────────────────────────────────────────
 
+cat(sprintf("[evaluate_pgs] Reading scores: %s\n", opt$scores))
 # plink2 .sscore: #FID IID ALLELE_CT NAMED_ALLELE_DOSAGE_SUM SCORE1_AVG (or SCORE1_SUM/SCORE1)
 scores <- read.table(opt$scores, header = TRUE, check.names = FALSE,
                      comment.char = "")
@@ -58,11 +59,16 @@ if (length(score_col) == 0L)
        paste(colnames(scores), collapse = ", "))
 colnames(scores)[colnames(scores) == score_col[1]] <- "SCORE1_AVG"
 scores <- scores[, c("FID", "IID", "SCORE1_AVG"), drop = FALSE]
+cat(sprintf("[evaluate_pgs] Scores: %d rows\n", nrow(scores)))
 
+cat(sprintf("[evaluate_pgs] Reading pheno: %s\n", opt$pheno))
 pheno <- read.table(opt$pheno, header = TRUE)   # FID IID Y
+cat(sprintf("[evaluate_pgs] Pheno: %d rows\n", nrow(pheno)))
 
+cat(sprintf("[evaluate_pgs] Reading test IDs: %s\n", opt$`test-ids`))
 test_ids <- read.table(opt$`test-ids`, header = FALSE,
                        col.names = c("FID", "IID"))
+cat(sprintf("[evaluate_pgs] Test IDs: %d rows\n", nrow(test_ids)))
 
 # ── Restrict to test-set individuals and merge ────────────────────────────────
 
@@ -73,6 +79,7 @@ df <- df[!is.na(df$Y) & !is.na(df$SCORE1_AVG), ]
 # Optionally merge principal components
 pc_cols <- character(0)
 if (!is.null(opt$covariates)) {
+  cat(sprintf("[evaluate_pgs] Reading covariates: %s\n", opt$covariates))
   pcs <- read.table(opt$covariates, header = TRUE, check.names = FALSE,
                     comment.char = "")
   colnames(pcs)[1] <- sub("^#", "", colnames(pcs)[1])  # strip leading '#'
@@ -152,7 +159,9 @@ if (opt$`trait-type` == "quantitative") {
 # ── Per-individual PGS variance (optional) ───────────────────────────────────
 
 if (!is.null(opt$`var-scores`)) {
-  var_df <- read.table(opt$`var-scores`, header = TRUE)
+  cat(sprintf("[evaluate_pgs] Reading var-scores: %s\n", opt$`var-scores`))
+  var_df <- read.table(opt$`var-scores`, header = TRUE, sep = "\t",
+                       na.strings = c("NA", ""))
   var_df <- merge(var_df, test_ids, by = c("FID", "IID"))
   var_df <- var_df[!is.na(var_df$PGS_VAR), ]
   if (nrow(var_df) > 0L) {
