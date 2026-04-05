@@ -73,8 +73,9 @@ df <- df[!is.na(df$Y) & !is.na(df$SCORE1_AVG), ]
 # Optionally merge principal components
 pc_cols <- character(0)
 if (!is.null(opt$covariates)) {
-  pcs <- read.table(opt$covariates, header = TRUE, check.names = FALSE)
-  colnames(pcs)[1] <- "FID"   # strip leading '#'
+  pcs <- read.table(opt$covariates, header = TRUE, check.names = FALSE,
+                    comment.char = "")
+  colnames(pcs)[1] <- sub("^#", "", colnames(pcs)[1])  # strip leading '#'
   pc_cols <- grep("^PC", colnames(pcs), value = TRUE)
   df <- merge(df, pcs[, c("FID", "IID", pc_cols)], by = c("FID", "IID"))
   df <- df[complete.cases(df[, pc_cols]), ]
