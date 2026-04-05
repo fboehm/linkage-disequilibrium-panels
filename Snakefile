@@ -1065,22 +1065,21 @@ rule score_test_set:
         """
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.sscore})
-        TMP_BED=$(mktemp -d)/renamed
+        TMP_DIR=$(mktemp -d)
+        awk 'BEGIN{{OFS="\t"}} $2=="." {{
+            chrom=$1; sub(/^chr/,"",chrom);
+            $2=chrom":"$4":"$6":"$5
+        }} {{print}}' {params.bed_prefix}.bim > "$TMP_DIR/merged.bim"
+        ln -s $(realpath {params.bed_prefix}.bed) "$TMP_DIR/merged.bed"
+        ln -s $(realpath {params.bed_prefix}.fam) "$TMP_DIR/merged.fam"
         plink2 \
-            --bfile                {params.bed_prefix} \
-            --set-missing-var-ids  '@:#:$r:$a' \
-            --new-id-max-allele-len 1000 \
-            --make-bed \
-            --out                  "$TMP_BED" \
-            2> {log}
-        plink2 \
-            --bfile   "$TMP_BED" \
+            --bfile   "$TMP_DIR/merged" \
             --keep    {input.test_ids} \
             --score   {input.betas} 1 2 3 header \
             --threads 1 \
             --out     {params.score_prefix} \
-            2>> {log}
-        rm -rf "$(dirname $TMP_BED)"
+            2> {log}
+        rm -rf "$TMP_DIR"
         """
 
 
