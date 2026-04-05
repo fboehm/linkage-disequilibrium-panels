@@ -258,7 +258,7 @@ cat(sprintf("[ldpred2] Final estimates: h2 = %.4f  p_causal = %.5f\n",
 # ── Write per-SNP weights ─────────────────────────────────────────────────────
 
 out_df <- data.frame(
-  SNP      = paste0(info_snp$chr, ":", info_snp$pos, ":",
+  SNP      = paste0("chr", info_snp$chr, ":", info_snp$pos, ":",
                     info_snp$a0,  ":", info_snp$a1),
   A1       = info_snp$a1,
   BETA     = betas_final,
