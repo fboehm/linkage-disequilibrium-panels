@@ -134,26 +134,13 @@ if (length(ind_col) == 0L) {
   quit(save = "no", status = 0L)
 }
 
-# Build a full-length vector so big_apply can index by FBM column index
-beta_var_by_col           <- rep(0.0, ncol(G))
-beta_var_by_col[ind_col]  <- betas$BETA_VAR
-
 # ── Compute Var(PGS_i) = sum_j  BETA_VAR_j * G_ij^2 ────────────────────────
 cat("[score_pgs_variance] Computing per-individual PGS variance ...\n")
 
-pgs_var <- big_apply(
-  X       = G,
-  a.FUN   = function(X, ind, ind_row, bv_all) {
-    g_blk <- X[ind_row, ind]          # n_test × block_size  (integer 0/1/2)
-    bv    <- bv_all[ind]              # block_size
-    as.matrix(rowSums(sweep(g_blk^2, 2L, bv, `*`)))
-  },
-  a.combine = `+`,
-  ind       = ind_col,
-  ind_row   = ind_row,
-  bv_all    = beta_var_by_col,
-  ncores    = opt$ncores
-)
+# Direct extraction: n_test × n_snps integer matrix, then weighted sum
+G_sub        <- G[ind_row, ind_col]        # integer matrix (0/1/2)
+beta_var_vec <- betas$BETA_VAR             # length n_snps
+pgs_var      <- as.numeric(G_sub^2 %*% beta_var_vec)
 
 # ── Write output ─────────────────────────────────────────────────────────────
 out_df <- data.table(
