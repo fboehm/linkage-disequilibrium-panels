@@ -214,6 +214,7 @@ rule all_pgs:
             for p_causal           in P_CAUSAL_LEVELS
             for effect_dist        in EFFECT_DISTS
         ],
+        "results/summary/all_metrics.tsv",
 
 
 rule collect_all_metrics:
