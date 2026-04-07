@@ -53,17 +53,18 @@ parse_path <- function(full_path, root) {
   rel <- sub(paste0("^", normalizePath(root, mustWork = FALSE), "/"), "",
              normalizePath(full_path, mustWork = FALSE))
   parts <- strsplit(rel, "/", fixed = TRUE)[[1L]]
-  # parts: method / rep{N} / ancestry / n{N} / trait / h2_{V} / pc_{V} / dist / metrics.tsv
-  if (length(parts) != 9L) return(NULL)
+  # parts: method / sim_method / rep{N} / ancestry / n{N} / trait / h2_{V} / pc_{V} / dist / metrics.tsv
+  if (length(parts) != 10L) return(NULL)
   list(
     method         = parts[1L],
-    rep            = as.integer(sub("rep", "", parts[2L])),
-    panel_ancestry = parts[3L],
-    panel_n        = as.integer(sub("n", "", parts[4L])),
-    trait          = parts[5L],
-    h2             = as.numeric(sub("h2_", "", parts[6L])),
-    p_causal       = as.numeric(sub("pc_", "", parts[7L])),
-    effect_dist    = parts[8L]
+    sim_method     = parts[2L],
+    rep            = as.integer(sub("rep", "", parts[3L])),
+    panel_ancestry = parts[4L],
+    panel_n        = as.integer(sub("n", "", parts[5L])),
+    trait          = parts[6L],
+    h2             = as.numeric(sub("h2_", "", parts[7L])),
+    p_causal       = as.numeric(sub("pc_", "", parts[8L])),
+    effect_dist    = parts[9L]
   )
 }
 
@@ -86,9 +87,9 @@ if (length(rows) == 0L) {
 }
 
 out <- rbindlist(rows, fill = TRUE)
-setcolorder(out, c("method", "rep", "panel_ancestry", "panel_n",
+setcolorder(out, c("method", "sim_method", "rep", "panel_ancestry", "panel_n",
                    "trait", "h2", "p_causal", "effect_dist"))
-setorder(out, method, panel_ancestry, panel_n, rep, trait, h2, p_causal, effect_dist)
+setorder(out, method, sim_method, panel_ancestry, panel_n, rep, trait, h2, p_causal, effect_dist)
 
 dir.create(dirname(opt$out), recursive = TRUE, showWarnings = FALSE)
 fwrite(out, opt$out, sep = "\t")

@@ -196,31 +196,34 @@ rule all_hapnest:
         ),
 
 
+ALL_METRICS_FILES = [
+    (
+        f"results/evaluation/{method}/{sim_method}/rep{rep}"
+        f"/{panel_ancestry}/n{panel_n}"
+        f"/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/metrics.tsv"
+    )
+    for sim_method         in SIM_METHODS
+    for method             in PGS_METHODS
+    for rep                in REPS
+    for (panel_ancestry, panel_n) in VALID_PANEL_COMBOS
+    for trait              in TRAIT_LABELS
+    for h2                 in H2_LEVELS
+    for p_causal           in P_CAUSAL_LEVELS
+    for effect_dist        in EFFECT_DISTS
+]
+
+
 rule all_pgs:
     """Full PGS evaluation across all simulation methods, panel sizes, ancestries, and PGS methods."""
     input:
-        [
-            (
-                f"results/evaluation/{method}/{sim_method}/rep{rep}"
-                f"/{panel_ancestry}/n{panel_n}"
-                f"/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/metrics.tsv"
-            )
-            for sim_method         in SIM_METHODS
-            for method             in PGS_METHODS
-            for rep                in REPS
-            for (panel_ancestry, panel_n) in VALID_PANEL_COMBOS
-            for trait              in TRAIT_LABELS
-            for h2                 in H2_LEVELS
-            for p_causal           in P_CAUSAL_LEVELS
-            for effect_dist        in EFFECT_DISTS
-        ],
+        ALL_METRICS_FILES,
         "results/summary/all_metrics.tsv",
 
 
 rule collect_all_metrics:
     """Aggregate all per-scenario metrics.tsv files into a single table."""
     input:
-        metrics = rules.all_pgs.input,
+        metrics = ALL_METRICS_FILES,
         script  = "scripts/collect_metrics.R",
     output:
         "results/summary/all_metrics.tsv",
