@@ -36,6 +36,7 @@ import argparse
 import os
 import sys
 import numpy as np
+import pandas as pd
 import h5py
 
 
@@ -69,6 +70,11 @@ def parse_args():
                         "[default: 400]")
     p.add_argument("--maf",            type=float, default=0.01,
                    help="Minor allele frequency filter [default: 0.01]")
+    p.add_argument("--hm3-grch38",     default=None, metavar="FILE",
+                   help="TSV with HapMap3 GRCh38 positions (columns: chrom pos rsid). "
+                        "When provided, SNPs are restricted to HM3 sites and their "
+                        "rsIDs are used in snpinfo and HDF5 snplists, so the custom "
+                        "reference is compatible with run_prscs.py rsID remapping.")
     return p.parse_args()
 
 
@@ -301,6 +307,18 @@ def main():
             file=sys.stderr,
         )
 
+    # Build (chrom_str, pos) → rsID lookup from HM3 GRCh38 table if provided.
+    # This replaces positional BIM IDs with proper rsIDs in the output, making
+    # the custom reference compatible with the rsID remapping in run_prscs.py.
+    hm3_lookup = {}
+    if args.hm3_grch38:
+        hm3 = pd.read_csv(args.hm3_grch38, sep="\t")
+        hm3["chrom"] = hm3["chrom"].astype(str).str.lstrip("chr")
+        hm3["pos"]   = hm3["pos"].astype(int)
+        hm3_lookup   = dict(zip(zip(hm3["chrom"], hm3["pos"]), hm3["rsid"]))
+        print(f"Loaded {len(hm3_lookup)} HM3 GRCh38 positions from {args.hm3_grch38}",
+              file=sys.stderr)
+
     all_snps = read_bim(args.bfile + ".bim")
     iids     = read_fam(args.bfile + ".fam")
     n_total  = len(iids)
@@ -340,6 +358,27 @@ def main():
         maf_k         = maf[keep]
         print(f"chr{chrom}: {keep.sum()} / {len(keep)} SNPs pass MAF >= {args.maf}",
               file=sys.stderr, flush=True)
+
+        # If an HM3 GRCh38 table was provided, restrict to HM3 SNPs and replace
+        # BIM IDs with rsIDs so the snpinfo and HDF5 snplists use proper rsIDs.
+        if hm3_lookup:
+            hm3_keep = []
+            for s in chrom_snps_k:
+                rsid = hm3_lookup.get((str(chrom), s["pos"]))
+                if rsid:
+                    s = dict(s, rsid=rsid)   # replace positional ID with rsID
+                    hm3_keep.append((s, True))
+                else:
+                    hm3_keep.append((s, False))
+            hm3_mask      = np.array([v for _, v in hm3_keep], dtype=bool)
+            chrom_snps_k  = [s for s, v in hm3_keep if v]
+            G             = G[:, hm3_mask]
+            maf_k         = maf_k[hm3_mask]
+            print(f"chr{chrom}: {hm3_mask.sum()} SNPs have HM3 rsIDs",
+                  file=sys.stderr, flush=True)
+            if not chrom_snps_k:
+                print(f"chr{chrom}: no HM3 SNPs remaining — skipping", file=sys.stderr)
+                continue
 
         ld_blocks, snp_blocks = compute_ld_blocks_mdl(
             G, chrom_snps_k, args.max_block_size
