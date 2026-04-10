@@ -101,12 +101,14 @@ panel_sizes:
 #   AFR_1kg         – 1000 Genomes AFR super-population (n≈661)
 #   AMR_1kg         – 1000 Genomes AMR super-population (n≈347)
 #   oracle          – GWAS population used as its own LD reference (upper bound)
+#   gwas_subset     – random subsets of the GWAS sample used as LD reference
 panel_ancestries:
   - matched_admixed
   - EUR_1kg
   - AFR_1kg
   - AMR_1kg
   - oracle
+  - gwas_subset
 
 # Maximum number of 1KG individuals available per super-population.
 # Any panel_size > panel_1kg_max[ancestry] is skipped automatically.

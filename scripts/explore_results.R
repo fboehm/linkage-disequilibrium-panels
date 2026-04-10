@@ -42,11 +42,12 @@ d <- d |>
   )
 
 ancestry_colours <- c(
-  AFR_1kg       = "#E41A1C",
-  AMR_1kg       = "#FF7F00",
-  EUR_1kg       = "#377EB8",
+  AFR_1kg         = "#E41A1C",
+  AMR_1kg         = "#FF7F00",
+  EUR_1kg         = "#377EB8",
   matched_admixed = "#4DAF4A",
-  oracle        = "#984EA3"
+  oracle          = "#984EA3",
+  gwas_subset     = "#A65628"
 )
 
 # ── 1. AUC vs panel size (binary traits, averaged over replicates & p_causal) ──
@@ -198,27 +199,82 @@ p6 <- ggplot(r2_inc, aes(panel_n, mean_val,
 
 save_plot(p6, "06_incremental_r2_vs_panelN", w = 12, h = 8)
 
-# ── 7. PGS posterior variance vs panel size ────────────────────────────────────
+# ── 7. PGS posterior variance vs panel size ───────────────────────────────────
+# matched_admixed, quantitative trait, gaussian effect distribution
+# colour = h2, linetype/shape = p_causal, facet = method
 
 var_d <- d |>
-  filter(metric == "pgs_var_mean") |>
-  group_by(method, panel_ancestry, panel_n, trait) |>
+  filter(
+    metric          == "pgs_var_mean",
+    panel_ancestry  == "matched_admixed",
+    trait           == "quantitative",
+    effect_dist     == "gaussian",
+    method          == "prscs"
+  ) |>
+  mutate(p_causal_f = factor(p_causal)) |>
+  group_by(panel_n, h2_f, p_causal_f) |>
   summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
 
 p7 <- ggplot(var_d, aes(panel_n, mean_val,
-                        colour = panel_ancestry,
-                        linetype = method)) +
+                        colour   = h2_f,
+                        linetype = p_causal_f,
+                        shape    = p_causal_f,
+                        group    = interaction(h2_f, p_causal_f))) +
   geom_line() +
-  geom_point(size = 1.5) +
-  facet_wrap(~trait, scales = "free_y",
-             labeller = label_both) +
-  scale_x_log10(breaks = c(100, 500, 1000, 5000, 15000),
+  geom_point(size = 2) +
+  scale_x_log10(breaks = c(100, 500, 1000, 5000, 10000),
                 labels  = comma) +
-  scale_colour_manual(values = ancestry_colours) +
-  labs(title  = "Mean PGS posterior variance vs panel size",
-       x      = "Panel N (log scale)", y = "Mean PGS variance",
-       colour = "Panel ancestry", linetype = "Method")
+  labs(title    = "PGS posterior variance vs panel size — PRScs\n(matched_admixed, quantitative, gaussian)",
+       x        = "Panel N (log scale)",
+       y        = "Mean PGS variance",
+       colour   = "h²",
+       linetype = "p_causal",
+       shape    = "p_causal") +
+  theme(legend.position = "right")
 
-save_plot(p7, "07_pgs_variance_vs_panelN", w = 12, h = 7)
+save_plot(p7, "07_pgs_variance_vs_panelN", w = 12, h = 6)
+
+# ── 8. Accuracy vs panel size: matched_admixed only ───────────────────────────
+
+admixed_vals <- d |>
+  filter(
+    panel_ancestry == "matched_admixed",
+    metric %in% c("R2_full", "AUC_adjusted")
+  ) |>
+  group_by(method, panel_n, metric, trait, h2_f, effect_dist) |>
+  summarise(mean_val = mean(value, na.rm = TRUE),
+            se_val   = sd(value, na.rm = TRUE) / sqrt(n()),
+            .groups  = "drop")
+
+p8_base <- function(metric_sel, trait_sel, ylabel) {
+  ggplot(
+    admixed_vals |> filter(metric == metric_sel, trait == trait_sel),
+    aes(panel_n, mean_val, colour = method, shape = method)
+  ) +
+    geom_line() +
+    geom_point(size = 2) +
+    facet_grid(h2_f ~ effect_dist, labeller = label_both) +
+    scale_x_log10(breaks = c(100, 500, 1000, 5000, 10000),
+                  labels  = comma) +
+    scale_colour_manual(values = c(ldpred2 = "#1F78B4", prscs = "#33A02C")) +
+    labs(x      = "Panel N (log scale)",
+         y      = ylabel,
+         colour = "Method", shape = "Method") +
+    theme(legend.position = "right",
+          strip.text       = element_text(size = 8))
+}
+
+p8a <- p8_base("R2_full", "quantitative", "Mean R²") +
+  ggtitle("R² vs panel size: matched_admixed — quantitative")
+
+p8b <- p8_base("AUC_adjusted", "binary_prev10", "Mean AUC") +
+  ggtitle("AUC vs panel size: matched_admixed — binary (prev = 0.10)")
+
+p8c <- p8_base("AUC_adjusted", "binary_prev30", "Mean AUC") +
+  ggtitle("AUC vs panel size: matched_admixed — binary (prev = 0.30)")
+
+save_plot(p8a, "08a_r2_admixed",        w = 12, h = 10)
+save_plot(p8b, "08b_auc_admixed_prev10", w = 12, h = 10)
+save_plot(p8c, "08c_auc_admixed_prev30", w = 12, h = 10)
 
 message("Done — ", length(list.files(outdir, "*.png")), " plots written to ", outdir)

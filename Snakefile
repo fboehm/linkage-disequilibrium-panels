@@ -68,6 +68,7 @@ PRSCS_POP = {
     "AFR_1kg":         "afr",
     "AMR_1kg":         "amr",
     "oracle":          "amr",
+    "gwas_subset":     "amr",
 }
 # PRScs.py checks os.path.basename(ref_dir) for '1kg' or 'ukbb' before loading
 # the reference — directories that don't match either string leave ref_dict
@@ -79,6 +80,7 @@ PRSCS_REF_DIR = {
     "AFR_1kg":         "AFR_1kg",
     "AMR_1kg":         "AMR_1kg",
     "oracle":          "AMR_1kg",
+    "gwas_subset":     "AMR_1kg",
 }
 PRSCS_REF_URLS = config.get("prscs_ref_urls", {})
 
@@ -105,6 +107,10 @@ def _valid_panel_combos():
                     combos.append((anc, n))
     if "oracle" in PANEL_ANCESTRIES:
         combos.append(("oracle", N_GWAS))
+    if "gwas_subset" in PANEL_ANCESTRIES:
+        for n in PANEL_SIZES:
+            if n < N_GWAS:
+                combos.append(("gwas_subset", n))
     return combos
 
 
@@ -115,7 +121,7 @@ VALID_PANEL_COMBOS = _valid_panel_combos()
 
 wildcard_constraints:
     sim_method     = r"msprime|hapgen2|hapnest|hapnest_public",
-    panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg|oracle",
+    panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg|oracle|gwas_subset",
     panel_n        = r"\d+",
     method         = r"ldpred2|prscs",
     rep            = r"\d+",
@@ -152,7 +158,7 @@ def panel_bed(wildcards):
     sm = wildcards.sim_method
     if a == "matched_admixed":
         return f"results/plink/{sm}/panel/rep{wildcards.rep}/merged.bed"
-    elif a == "oracle":
+    elif a in ("oracle", "gwas_subset"):
         return f"results/plink/{sm}/gwas/rep{wildcards.rep}/merged.bed"
     else:
         return f"resources/panels/{a}/merged.bed"
@@ -1006,6 +1012,48 @@ rule download_prscs_ref:
         """
 
 
+# ── Step 8c-i: Build custom PRS-CS LD reference from panel genotypes ──────────
+
+rule build_prscs_ref_custom:
+    """Build a PRS-CS HDF5 LD reference from the simulated/1KG panel BED file.
+
+    LD block boundaries are found via the MDL criterion (Berisa & Pickrell 2016).
+    The output subdirectory is named 'ref_1kg' so PRScs.py parse_ldblk() accepts
+    it.  Runs once per (sim_method, rep, panel_ancestry, panel_n); all run_prscs
+    jobs for that combination share the output.
+    """
+    input:
+        bed    = lambda wc: panel_bed(wc),
+        bim    = lambda wc: panel_bed(wc)[:-4] + ".bim",
+        fam    = lambda wc: panel_bed(wc)[:-4] + ".fam",
+        script = "scripts/make_prscs_ref.py",
+    output:
+        sentinel = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
+    params:
+        bfile          = lambda wc, input: input.bed[:-4],
+        out_dir        = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg",
+        chroms         = " ".join(chrom_num(c) for c in CHROMS),
+        n_panel        = lambda wc: wc.panel_n,
+        seed           = sim_seed,
+        max_block_size = 400,
+    log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
+    resources:
+        mem_mb = 8000,
+    shell:
+        """
+        module load python/3.12
+        mkdir -p {params.out_dir}
+        python3 {input.script} \
+            --bfile          {params.bfile} \
+            --out            {params.out_dir} \
+            --chroms         {params.chroms} \
+            --n-panel        {params.n_panel} \
+            --seed           {params.seed} \
+            --max-block-size {params.max_block_size} \
+            2> {log}
+        """
+
+
 # ── Step 8c: Compute PRS-CS weights ───────────────────────────────────────────
 
 rule run_prscs:
@@ -1015,12 +1063,12 @@ rule run_prscs:
         bim        = "results/plink/{sim_method}/gwas/rep{rep}/merged.bim",
         script     = "scripts/run_prscs.py",
         prscs_exe  = "resources/prscs/PRScs.py",
-        ref_data   = lambda wc: "resources/prscs_ref/" + PRSCS_REF_DIR[wc.panel_ancestry] + "/snpinfo_1kg_hm3",
+        ref_data   = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv" if wc.sim_method == "hapnest_public" else [],
     output:
         betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
     params:
-        ref_dir        = lambda wc: "resources/prscs_ref/" + PRSCS_REF_DIR[wc.panel_ancestry],
+        ref_dir        = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg",
         bim_prefix     = "results/plink/{sim_method}/gwas/rep{rep}/merged",
         n_train        = _n_train,
         seed           = lambda wc: BASE_SEED + int(wc.rep),
@@ -1088,11 +1136,13 @@ rule score_test_set:
 # ── Step 10a: Per-individual posterior PGS variance ───────────────────────────
 
 rule score_pgs_variance:
-    """Compute per-individual posterior PGS variance: Var(PGS_i) = Σ_j BETA_VAR_j * G_ij²."""
+    """Compute per-individual posterior PGS variance: Var(PGS_i) = w_i^T R w_i, w_i = sqrt(BETA_VAR) * G_i."""
     input:
         bed      = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
         betas    = "results/pgs_weights/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
         test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
+        ld_sfbm  = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ld_sfbm.rds",
+        ld_snps  = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/matched_snps.tsv",
         script   = "scripts/score_pgs_variance.R",
     output:
         var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
@@ -1108,6 +1158,8 @@ rule score_pgs_variance:
             --bed      {input.bed} \
             --betas    {input.betas} \
             --test-ids {input.test_ids} \
+            --ld-sfbm  {input.ld_sfbm} \
+            --ld-snps  {input.ld_snps} \
             --out      {output.var_scores} \
             2> {log}
         """
