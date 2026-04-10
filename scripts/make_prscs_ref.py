@@ -340,6 +340,22 @@ def main():
             print(f"chr{chrom}: no SNPs in BIM — skipping", file=sys.stderr)
             continue
 
+        # If an HM3 lookup was provided, restrict to HM3 SNPs and replace BIM IDs
+        # with rsIDs BEFORE loading genotypes — avoids loading the full chromosome
+        # into memory (e.g. 100k SNPs → ~5k HM3 SNPs).
+        if hm3_lookup:
+            hm3_snps = []
+            for s in chrom_snps:
+                rsid = hm3_lookup.get((str(chrom), s["pos"]))
+                if rsid:
+                    hm3_snps.append(dict(s, rsid=rsid))
+            print(f"chr{chrom}: {len(hm3_snps)} / {len(chrom_snps)} SNPs have HM3 rsIDs",
+                  file=sys.stderr, flush=True)
+            if not hm3_snps:
+                print(f"chr{chrom}: no HM3 SNPs found — skipping", file=sys.stderr)
+                continue
+            chrom_snps = hm3_snps
+
         print(f"chr{chrom}: loading {len(chrom_snps)} SNPs ...",
               file=sys.stderr, flush=True)
         G = load_genotypes(args.bfile + ".bed", chrom_snps, ind_idx, n_total)
@@ -358,27 +374,6 @@ def main():
         maf_k         = maf[keep]
         print(f"chr{chrom}: {keep.sum()} / {len(keep)} SNPs pass MAF >= {args.maf}",
               file=sys.stderr, flush=True)
-
-        # If an HM3 GRCh38 table was provided, restrict to HM3 SNPs and replace
-        # BIM IDs with rsIDs so the snpinfo and HDF5 snplists use proper rsIDs.
-        if hm3_lookup:
-            hm3_keep = []
-            for s in chrom_snps_k:
-                rsid = hm3_lookup.get((str(chrom), s["pos"]))
-                if rsid:
-                    s = dict(s, rsid=rsid)   # replace positional ID with rsID
-                    hm3_keep.append((s, True))
-                else:
-                    hm3_keep.append((s, False))
-            hm3_mask      = np.array([v for _, v in hm3_keep], dtype=bool)
-            chrom_snps_k  = [s for s, v in hm3_keep if v]
-            G             = G[:, hm3_mask]
-            maf_k         = maf_k[hm3_mask]
-            print(f"chr{chrom}: {hm3_mask.sum()} SNPs have HM3 rsIDs",
-                  file=sys.stderr, flush=True)
-            if not chrom_snps_k:
-                print(f"chr{chrom}: no HM3 SNPs remaining — skipping", file=sys.stderr)
-                continue
 
         ld_blocks, snp_blocks = compute_ld_blocks_mdl(
             G, chrom_snps_k, args.max_block_size
