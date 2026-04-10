@@ -90,7 +90,7 @@ def read_bim(path):
     with open(path) as f:
         for i, line in enumerate(f):
             parts = line.split()
-            snps.append(dict(global_idx=i, chrom=int(parts[0]),
+            snps.append(dict(global_idx=i, chrom=int(parts[0].lstrip("chr")),
                              rsid=parts[1], pos=int(parts[3]),
                              a1=parts[4], a0=parts[5]))
     return snps

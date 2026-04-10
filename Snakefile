@@ -1028,7 +1028,8 @@ rule build_prscs_ref_custom:
         fam       = lambda wc: panel_bed(wc)[:-4] + ".fam",
         script    = "scripts/make_prscs_ref.py",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv"
-                                 if wc.sim_method == "hapnest_public" else [],
+                                 if wc.sim_method == "hapnest_public"
+                                 and not wc.panel_ancestry.endswith("_1kg") else [],
     output:
         sentinel = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
     params:
