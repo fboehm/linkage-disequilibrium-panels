@@ -1028,8 +1028,7 @@ rule build_prscs_ref_custom:
         fam       = lambda wc: panel_bed(wc)[:-4] + ".fam",
         script    = "scripts/make_prscs_ref.py",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv"
-                                 if wc.sim_method == "hapnest_public"
-                                 and not wc.panel_ancestry.endswith("_1kg") else [],
+                                 if wc.sim_method == "hapnest_public" else [],
     output:
         sentinel = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
     params:
@@ -1040,8 +1039,7 @@ rule build_prscs_ref_custom:
         seed           = sim_seed,
         max_block_size = 400,
         hm3_grch38_arg = lambda wc, input: f"--hm3-grch38 {input.hm3_grch38}"
-                                            if wc.sim_method == "hapnest_public"
-                                            and not wc.panel_ancestry.endswith("_1kg") else "",
+                                            if wc.sim_method == "hapnest_public" else "",
     log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
     resources:
         mem_mb = 8000,
