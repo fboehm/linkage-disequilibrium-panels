@@ -47,6 +47,11 @@ set-resources:
     runtime: 480      # 8 h
     cpus_per_task: 4
 
+  # VCF → PLINK conversion — 168k HAPNEST individuals needs more than 16 GB
+  merge_and_convert:
+    mem_mb: 64000
+    runtime: 480      # 8 h
+
   # 1KG population extraction — concatenates all 22 chromosomes
   extract_1kg_population:
     mem_mb: 16000

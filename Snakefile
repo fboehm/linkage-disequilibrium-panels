@@ -682,7 +682,7 @@ rule merge_and_convert:
     log:
         "logs/merge_convert/{sim_method}_rep{rep}_{cohort}.log",
     resources:
-        mem_mb = 16000,
+        mem_mb = 64000,
     shell:
         """
         module load bcftools/1.19 plink/2.0-alpha
