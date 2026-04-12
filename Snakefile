@@ -9,9 +9,9 @@
 #   python3: msprime, stdpopsim
 #   R: bigsnpr, bigsparser, optparse, data.table
 #
-# Quick test run (two chromosomes, two replicates, matched-admixed panel only):
-#   snakemake --config chromosomes=[chr21,chr22] n_replicates=2 \
-#             panel_ancestries=[matched_admixed] sim_methods=[msprime] -j4
+# Quick test run (two chromosomes, one replicate, matched AMR panel only):
+#   snakemake --config chromosomes=[chr21,chr22] n_replicates=1 \
+#             panel_ancestries=[hapnest_AMR] panel_sizes=[500] -j4
 #
 # Full run:
 #   snakemake all_pgs -j <n_cores> --resources mem_mb=<total_mb>
@@ -61,57 +61,37 @@ TRAIT_LABELS    = list(TRAIT_CONFIGS.keys())
 
 # ── Panel & method parameters ──────────────────────────────────────────────────
 
-# PRS-CS: maps each panel ancestry to its 1KG population code for ref download.
+# All panels use custom LD references built from HAPNEST public genotypes.
+# PRSCS_POP documents the closest 1KG population code per ancestry (informational only).
 PRSCS_POP = {
-    "matched_admixed": "amr",
-    "EUR_1kg":         "eur",
-    "AFR_1kg":         "afr",
-    "AMR_1kg":         "amr",
-    "oracle":          "amr",
-    "gwas_subset":     "amr",
+    "hapnest_AMR": "amr",
+    "hapnest_AFR": "afr",
+    "hapnest_EUR": "eur",
+    "hapnest_EAS": "eas",
+    "hapnest_CSA": "sas",
+    "hapnest_MID": "sas",
 }
-# PRScs.py checks os.path.basename(ref_dir) for '1kg' or 'ukbb' before loading
-# the reference — directories that don't match either string leave ref_dict
-# unbound and cause an UnboundLocalError.  Map every panel_ancestry to a ref
-# directory whose basename contains '1kg'.
-PRSCS_REF_DIR = {
-    "matched_admixed": "AMR_1kg",
-    "EUR_1kg":         "EUR_1kg",
-    "AFR_1kg":         "AFR_1kg",
-    "AMR_1kg":         "AMR_1kg",
-    "oracle":          "AMR_1kg",
-    "gwas_subset":     "AMR_1kg",
-}
-PRSCS_REF_URLS = config.get("prscs_ref_urls", {})
 
-PANEL_SIZES      = config.get("panel_sizes",
-                               [100, 250, 500, 1000, 2500, 5000, 10000])
+PANEL_SIZES      = config.get("panel_sizes", [500, 5000, 50000])
 PANEL_ANCESTRIES = config.get("panel_ancestries",
-                               ["matched_admixed", "EUR_1kg", "AFR_1kg",
-                                "AMR_1kg", "oracle"])
-PANEL_1KG_MAX    = config.get("panel_1kg_max",
-                               {"EUR_1kg": 503, "AFR_1kg": 661, "AMR_1kg": 347})
+                               ["hapnest_AMR", "hapnest_AFR", "hapnest_EUR",
+                                "hapnest_EAS", "hapnest_CSA", "hapnest_MID"])
 PGS_METHODS      = config.get("pgs_methods", ["ldpred2", "prscs"])
-KG_ANCESTRIES    = [a for a in PANEL_ANCESTRIES if a.endswith("_1kg")]
+
+# HAPNEST public superpopulation labels (strip "hapnest_" prefix).
+HAPNEST_PUBLIC_POPS       = [a.replace("hapnest_", "") for a in PANEL_ANCESTRIES
+                              if a.startswith("hapnest_")]
+HAPNEST_PUBLIC_NON_AMR_POPS = [p for p in HAPNEST_PUBLIC_POPS if p != "AMR"]
 
 
 def _valid_panel_combos():
     """Return list of (panel_ancestry, panel_n) tuples that are feasible."""
-    combos = []
-    for n in PANEL_SIZES:
-        combos.append(("matched_admixed", n))
-    for anc, max_n in PANEL_1KG_MAX.items():
-        if anc in PANEL_ANCESTRIES:
-            for n in PANEL_SIZES:
-                if n <= max_n:
-                    combos.append((anc, n))
-    if "oracle" in PANEL_ANCESTRIES:
-        combos.append(("oracle", N_GWAS))
-    if "gwas_subset" in PANEL_ANCESTRIES:
-        for n in PANEL_SIZES:
-            if n < N_GWAS:
-                combos.append(("gwas_subset", n))
-    return combos
+    return [
+        (a, n)
+        for a in PANEL_ANCESTRIES
+        for n in PANEL_SIZES
+        if n <= N_PANEL_MAX
+    ]
 
 
 VALID_PANEL_COMBOS = _valid_panel_combos()
@@ -121,7 +101,7 @@ VALID_PANEL_COMBOS = _valid_panel_combos()
 
 wildcard_constraints:
     sim_method     = r"msprime|hapgen2|hapnest|hapnest_public",
-    panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg|oracle|gwas_subset",
+    panel_ancestry = r"hapnest_AMR|hapnest_AFR|hapnest_EUR|hapnest_EAS|hapnest_CSA|hapnest_MID",
     panel_n        = r"\d+",
     method         = r"ldpred2|prscs",
     rep            = r"\d+",
@@ -156,12 +136,13 @@ def panel_bed(wildcards):
     """Return the merged.bed path for the given panel_ancestry wildcard."""
     a  = wildcards.panel_ancestry
     sm = wildcards.sim_method
-    if a == "matched_admixed":
+    if a == "hapnest_AMR":
+        # Matched panel: independent AMR subjects from the HAPNEST public file
         return f"results/plink/{sm}/panel/rep{wildcards.rep}/merged.bed"
-    elif a in ("oracle", "gwas_subset"):
-        return f"results/plink/{sm}/gwas/rep{wildcards.rep}/merged.bed"
     else:
-        return f"resources/panels/{a}/merged.bed"
+        # Ancestry-mismatched panels: other HAPNEST public superpopulations
+        pop = a.replace("hapnest_", "")
+        return f"results/plink/{sm}/{pop}/rep{wildcards.rep}/merged.bed"
 
 
 def _ref_sumstats(wildcards):
@@ -405,12 +386,14 @@ rule download_hapnest_public_plink:
 
 
 rule partition_hapnest_public:
-    """Filter to AMR subjects, randomly select 30 k, and split into cohorts.
+    """Partition HAPNEST public subjects into cohorts and write per-ancestry keep files.
 
-    Reads the chr1 FAM file (sample IDs) and the population sample file,
-    keeps only AMR individuals, draws n_gwas+n_target+n_panel at random,
-    and writes per-cohort keep files (for plink2 --keep) and rename files
-    (for bcftools reheader -s).  Run once; independent of chromosome.
+    For AMR: randomly draws n_gwas + n_target + n_panel subjects and splits them
+    into gwas / target / panel cohorts.
+    For each other superpopulation (AFR, EUR, EAS, CSA, MID): writes a keep file
+    containing all individuals of that ancestry as LD-panel candidates; subsampling
+    to the requested panel_n happens later in prepare_ldpred2_ref / build_prscs_ref.
+    Run once; independent of chromosome and replicate.
     """
     input:
         fam    = "resources/hapnest_public/raw/synthetic_v1_chr-{}.fam".format(CHROMS[0].lstrip("chr")),
@@ -423,17 +406,24 @@ rule partition_hapnest_public:
         rename_gwas   = "resources/hapnest_public/rename_gwas.txt",
         rename_target = "resources/hapnest_public/rename_target.txt",
         rename_panel  = "resources/hapnest_public/rename_panel.txt",
+        non_amr_keeps   = expand("resources/hapnest_public/keep_{pop}.txt",
+                                  pop=HAPNEST_PUBLIC_NON_AMR_POPS),
+        non_amr_renames = expand("resources/hapnest_public/rename_{pop}.txt",
+                                  pop=HAPNEST_PUBLIC_NON_AMR_POPS),
+    params:
+        non_amr_pops = " ".join(HAPNEST_PUBLIC_NON_AMR_POPS),
     log: "logs/setup/partition_hapnest_public.log"
     shell:
         """
         python3 {input.script} \
-            --fam      {input.fam} \
-            --sample   {input.sample} \
-            --n-gwas   {N_GWAS} \
-            --n-target {N_TARGET} \
-            --n-panel  {N_PANEL_MAX} \
-            --seed     {BASE_SEED} \
-            --outdir   resources/hapnest_public \
+            --fam                {input.fam} \
+            --sample             {input.sample} \
+            --n-gwas             {N_GWAS} \
+            --n-target           {N_TARGET} \
+            --n-panel            {N_PANEL_MAX} \
+            --seed               {BASE_SEED} \
+            --outdir             resources/hapnest_public \
+            --non-amr-ancestries {params.non_amr_pops} \
             2> {log}
         """
 
@@ -997,9 +987,9 @@ rule download_prscs_ref:
         sentinel = "resources/prscs_ref/{panel_ancestry}/snpinfo_1kg_hm3",
     params:
         outdir = "resources/prscs_ref/{panel_ancestry}",
-        url    = lambda wc: PRSCS_REF_URLS[PRSCS_POP[wc.panel_ancestry]],
+        url    = lambda wc: "",   # unused — all panels now use custom refs
     wildcard_constraints:
-        panel_ancestry = r"matched_admixed|EUR_1kg|AFR_1kg|AMR_1kg",
+        panel_ancestry = r"_unused_",   # rule kept for reference; not triggered
     log: "logs/setup/prscs_ref_{panel_ancestry}.log"
     resources:
         runtime = 120,

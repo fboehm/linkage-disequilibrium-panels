@@ -277,4 +277,44 @@ save_plot(p8a, "08a_r2_admixed",        w = 12, h = 10)
 save_plot(p8b, "08b_auc_admixed_prev10", w = 12, h = 10)
 save_plot(p8c, "08c_auc_admixed_prev30", w = 12, h = 10)
 
+# ── 9. R² vs panel size — all settings (quantitative) ────────────────────────
+# One figure per effect_dist; rows = h2, cols = p_causal; no averaging over
+# p_causal so every simulation setting gets its own panel.
+
+r2_all <- d |>
+  filter(metric == "R2_full", trait == "quantitative") |>
+  mutate(p_causal_f = factor(p_causal, levels = sort(unique(p_causal)))) |>
+  group_by(method, panel_ancestry, panel_n_f, panel_n, h2_f, p_causal_f, effect_dist) |>
+  summarise(mean_val = mean(value, na.rm = TRUE),
+            se_val   = sd(value, na.rm = TRUE) / sqrt(n()),
+            .groups  = "drop")
+
+for (ed in sort(unique(r2_all$effect_dist))) {
+  p9 <- ggplot(r2_all |> filter(effect_dist == ed),
+               aes(panel_n, mean_val,
+                   colour   = panel_ancestry,
+                   linetype = method,
+                   shape    = method)) +
+    geom_line() +
+    geom_point(size = 1.5) +
+    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
+                  width = 0, alpha = 0.4) +
+    facet_grid(h2_f ~ p_causal_f,
+               labeller = labeller(h2_f      = label_both,
+                                   p_causal_f = label_both)) +
+    scale_x_log10(breaks = c(100, 500, 1000, 5000, 15000),
+                  labels  = comma) +
+    scale_colour_manual(values = ancestry_colours) +
+    labs(title    = sprintf("R\u00b2 (full model) vs LD-panel size — quantitative, %s", ed),
+         subtitle = "rows = h\u00b2 | columns = p_causal",
+         x        = "Panel N (log scale)",
+         y        = "Mean R\u00b2 (\u00b1 1 SE)",
+         colour   = "Panel ancestry",
+         linetype = "Method", shape = "Method") +
+    theme(legend.position = "right",
+          strip.text       = element_text(size = 7))
+
+  save_plot(p9, sprintf("09_r2_all_settings_%s", ed), w = 16, h = 12)
+}
+
 message("Done — ", length(list.files(outdir, "*.png")), " plots written to ", outdir)
