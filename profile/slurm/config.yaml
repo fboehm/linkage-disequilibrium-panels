@@ -63,12 +63,27 @@ set-resources:
     runtime: 1440     # 24 h
     cpus_per_task: 4
 
-  # GWAS — genome-wide linear/logistic regression
+  # GWAS PCA — 80k training individuals; plink2 KING matrix ~25 GB
+  run_pca_gwas:
+    mem_mb: 64000
+    runtime: 480      # 8 h
+
+  # Test-set PCA projection — scoring only, low memory
+  project_pca_test:
+    mem_mb: 8000
+    runtime: 120      # 2 h
+
+  # GWAS — genome-wide linear/logistic regression on 80k individuals
   run_gwas:
-    mem_mb: 4000
+    mem_mb: 16000
     runtime: 240      # 4 h
 
   # PRS-CS weight computation
   run_prscs:
     mem_mb: 4000
     runtime: 360      # 6 h
+
+  # PGS posterior variance scoring — loads GWAS BED + SFBM into R
+  score_pgs_variance:
+    mem_mb: 32000
+    runtime: 480      # 8 h

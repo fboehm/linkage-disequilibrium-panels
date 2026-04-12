@@ -717,7 +717,7 @@ rule simulate_phenotypes:
     log:
         "logs/phenotypes/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
     resources:
-        mem_mb = 24000,
+        mem_mb = 128000,
     shell:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
@@ -1032,7 +1032,7 @@ rule build_prscs_ref_custom:
                                             if wc.sim_method == "hapnest_public" else "",
     log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
     resources:
-        mem_mb = 8000,
+        mem_mb = lambda wc: 32000 if int(wc.panel_n) >= 10000 else 8000,
     shell:
         """
         module load python/3.12
