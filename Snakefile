@@ -30,8 +30,6 @@ MAF         = config["maf_threshold"]
 TRAIN_FRAC  = config.get("train_frac", 0.80)
 N_PCS       = config.get("n_pcs", 10)
 
-KG3_URL     = config.get("kg3_base_url",
-                          "https://mathgen.stats.ox.ac.uk/impute/1000GP_Phase3")
 KG3_EBI_URL = config.get("kg3_ebi_url",
                           "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502")
 KG38_EBI_URL = config.get(
@@ -100,7 +98,7 @@ VALID_PANEL_COMBOS = _valid_panel_combos()
 # ── Wildcard constraints ───────────────────────────────────────────────────────
 
 wildcard_constraints:
-    sim_method     = r"msprime|hapgen2|hapnest|hapnest_public",
+    sim_method     = r"hapgen2|hapnest|hapnest_public",
     panel_ancestry = r"hapnest_AMR|hapnest_AFR|hapnest_EUR|hapnest_EAS|hapnest_CSA|hapnest_MID",
     panel_n        = r"\d+",
     method         = r"ldpred2|prscs",
@@ -242,29 +240,6 @@ rule download_hm3_ldpred2_rds:
         """
 
 
-rule download_hapmap3_sites:
-    """Download HapMap3 Phase 3 SNP positions (GRCh37) used by simulate_msprime.
-    Source: Privé et al. LDpred2 tutorial data (figshare).
-    Note: only needed when sim_methods includes msprime.
-    """
-    output:
-        tsv = config["hapmap3_sites_file"],
-    log: "logs/download/hapmap3_sites.log"
-    shell:
-        """
-        module load R/4.4.3-gcc-11.2.0-mkl
-        mkdir -p $(dirname {output.tsv})
-        Rscript -e "
-          tmp <- tempfile(fileext = '.rds')
-          download.file('https://figshare.com/ndownloader/files/36360325', tmp, quiet = TRUE)
-          map <- readRDS(tmp)
-          write.table(data.frame(chrom = map[['chr']], pos = map[['pos']]),
-                      '{output.tsv}', sep = '\\t', quote = FALSE, row.names = FALSE)
-          unlink(tmp)
-        " 2> {log}
-        """
-
-
 rule extract_hm3_grch38_sites:
     """Extract HapMap3 SNP positions on GRCh38 from the LDpred2 map RDS.
 
@@ -292,53 +267,6 @@ rule extract_hm3_grch38_sites:
           write.table(out, '{output.tsv}', sep='\\t', row.names=FALSE, quote=FALSE)
           cat(sprintf('[extract_hm3_grch38] wrote %d SNPs\\n', nrow(out)))
         " > {log} 2>&1
-        """
-
-
-# ── Step 1a: Download 1KG Phase 3 genetic maps ────────────────────────────────
-
-rule download_genetic_map:
-    """Download per-chromosome 1KG genetic map from the Oxford stats server."""
-    output: "resources/1kg/genetic_map_chr{chrom_n}_combined_b37.txt"
-    params: url = lambda wc: KG3_URL + "/genetic_map_chr" + wc.chrom_n + "_combined_b37.txt"
-    log: "logs/download/genetic_map_chr{chrom_n}.log"
-    shell:
-        """
-        mkdir -p resources/1kg
-        wget -q -O {output} "{params.url}" 2> {log}
-        """
-
-
-# ── Step 1b: Simulate genotypes with msprime (admixed population) ─────────────
-
-rule simulate_msprime:
-    """Simulate genotypes using the AmericanAdmixture_4B11 demographic model."""
-    input:
-        script        = "scripts/simulate_genotypes.py",
-        hapmap3_sites = config["hapmap3_sites_file"],
-    output:
-        expand(
-            "results/vcf/msprime/rep{{rep}}/{cohort}_{{chrom}}.vcf.gz",
-            cohort=COHORTS,
-        ),
-    params:
-        outdir = "results/vcf/msprime/rep{rep}",
-        seed   = sim_seed,
-    log: "logs/simulate/msprime_rep{rep}_{chrom}.log"
-    resources:
-        mem_mb = 16000,
-    shell:
-        """
-        mkdir -p {params.outdir}
-        python3 {input.script} \
-            --chrom          {wildcards.chrom} \
-            --n-gwas         {N_GWAS} \
-            --n-target       {N_TARGET} \
-            --n-panel        {N_PANEL_MAX} \
-            --seed           {params.seed} \
-            --hapmap3-sites  {input.hapmap3_sites} \
-            --outdir         {params.outdir} \
-            2>> {log}
         """
 
 
@@ -769,14 +697,24 @@ rule run_pca_gwas:
     input:
         bed       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
         train_ids = "results/splits/{sim_method}/rep{rep}/train.txt",
+        hm3_snps  = lambda wc: (
+            "resources/hapmap3_sites_grch38.tsv"
+            if wc.sim_method == "hapnest_public"
+            else []
+        ),
     output:
         eigenvec       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
         eigenval       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenval",
         eigenvec_allele = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec.allele",
     params:
-        prefix     = "results/pca/{sim_method}/gwas/rep{rep}/pcs",
-        bed_prefix = lambda wc, input: input.bed[:-4],
-        n_pcs      = N_PCS,
+        prefix      = "results/pca/{sim_method}/gwas/rep{rep}/pcs",
+        bed_prefix  = lambda wc, input: input.bed[:-4],
+        n_pcs       = N_PCS,
+        extract_arg = lambda wc, input: (
+            f"--extract <(awk 'NR>1 {{print $3}}' {input.hm3_snps})"
+            if wc.sim_method == "hapnest_public"
+            else ""
+        ),
     log: "logs/pca/{sim_method}_gwas_rep{rep}.log"
     resources: mem_mb = 4000
     threads: 4
@@ -788,6 +726,7 @@ rule run_pca_gwas:
             --bfile   {params.bed_prefix} \
             --keep    {input.train_ids} \
             --threads {threads} \
+            {params.extract_arg} \
             --pca     {params.n_pcs} allele-wts \
             --out     {params.prefix} \
             2> {log}
