@@ -6,7 +6,6 @@
 #
 # External tools required:
 #   bcftools >= 1.15, tabix, plink2 >= 2.0, wget
-#   python3: msprime, stdpopsim
 #   R: bigsnpr, bigsparser, optparse, data.table
 #
 # Quick test run (two chromosomes, one replicate, matched AMR panel only):
@@ -707,14 +706,9 @@ rule run_pca_gwas:
         eigenval       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenval",
         eigenvec_allele = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec.allele",
     params:
-        prefix      = "results/pca/{sim_method}/gwas/rep{rep}/pcs",
-        bed_prefix  = lambda wc, input: input.bed[:-4],
-        n_pcs       = N_PCS,
-        extract_arg = lambda wc, input: (
-            f"--extract <(awk 'NR>1 {{print $3}}' {input.hm3_snps})"
-            if wc.sim_method == "hapnest_public"
-            else ""
-        ),
+        prefix     = "results/pca/{sim_method}/gwas/rep{rep}/pcs",
+        bed_prefix = lambda wc, input: input.bed[:-4],
+        n_pcs      = N_PCS,
     log: "logs/pca/{sim_method}_gwas_rep{rep}.log"
     resources: mem_mb = 4000
     threads: 4
@@ -722,14 +716,27 @@ rule run_pca_gwas:
         """
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.eigenvec})
+
+        # Build --extract argument: write chrom/pos ranges to a temp file if hm3_snps provided
+        # The bim uses chr:pos:ref:alt IDs so we match by position (bed1 = 1-based ranges)
+        HM3="{input.hm3_snps}"
+        EXTRACT_ARG=""
+        if [ -n "$HM3" ]; then
+            TMP_IDS=$(mktemp)
+            awk 'NR>1 {{print $1, $2, $2}}' OFS='\t' "$HM3" > "$TMP_IDS"
+            EXTRACT_ARG="--extract bed1 $TMP_IDS"
+        fi
+
         plink2 \
             --bfile   {params.bed_prefix} \
             --keep    {input.train_ids} \
             --threads {threads} \
-            {params.extract_arg} \
+            $EXTRACT_ARG \
             --pca     {params.n_pcs} allele-wts \
             --out     {params.prefix} \
             2> {log}
+
+        [ -n "$HM3" ] && rm -f "$TMP_IDS"
         """
 
 
