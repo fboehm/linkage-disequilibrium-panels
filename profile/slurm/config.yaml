@@ -63,10 +63,10 @@ set-resources:
     runtime: 1440     # 24 h
     cpus_per_task: 4
 
-  # GWAS PCA — 80k training individuals; plink2 KING matrix ~25 GB
+  # GWAS PCA — 80k training individuals; approx randomized SVD avoids n×n GRM
   run_pca_gwas:
-    mem_mb: 64000
-    runtime: 960      # 16 h
+    mem_mb: 8000
+    runtime: 120      # 2 h
     cpus_per_task: 4
 
   # Test-set PCA projection — scoring only, low memory

@@ -732,7 +732,7 @@ rule run_pca_gwas:
             --keep    {input.train_ids} \
             --threads {threads} \
             $EXTRACT_ARG \
-            --pca     {params.n_pcs} allele-wts \
+            --pca     {params.n_pcs} approx allele-wts \
             --out     {params.prefix} \
             2> {log}
 
