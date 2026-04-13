@@ -779,15 +779,17 @@ rule run_pca_gwas:
         n_pcs      = N_PCS,
     log: "logs/pca/{sim_method}_gwas_rep{rep}.log"
     resources: mem_mb = 4000
+    threads: 4
     shell:
         """
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.eigenvec})
         plink2 \
-            --bfile {params.bed_prefix} \
-            --keep  {input.train_ids} \
-            --pca   {params.n_pcs} allele-wts \
-            --out   {params.prefix} \
+            --bfile   {params.bed_prefix} \
+            --keep    {input.train_ids} \
+            --threads {threads} \
+            --pca     {params.n_pcs} allele-wts \
+            --out     {params.prefix} \
             2> {log}
         """
 
