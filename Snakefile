@@ -857,21 +857,22 @@ rule project_pca_test:
 
 # ── Step 7: Run GWAS on training subjects ─────────────────────────────────────
 
-rule run_gwas:
-    """Run GWAS on training-set individuals with plink2 --glm, adjusted for PCs."""
+rule run_gwas_chrom:
+    """Run GWAS for one chromosome; results are merged by merge_gwas."""
     input:
         bed       = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
         pheno     = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
         train_ids = "results/splits/{sim_method}/rep{rep}/train.txt",
         pcs       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
     output:
-        sumstats = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+        sumstats  = temp("results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/gwas_{chrom}.tsv"),
     params:
         bed_prefix  = lambda wc, input: input.bed[:-4],
-        gwas_prefix = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/gwas",
+        gwas_prefix = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/gwas_{chrom}",
         binary_flag = lambda wc: "--1" if is_binary(wc) else "",
+        chrom_num   = lambda wc: wc.chrom.lstrip("chr"),
     log:
-        "logs/gwas/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
+        "logs/gwas/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}_{chrom}.log",
     resources:
         mem_mb = 4000,
     shell:
@@ -883,6 +884,7 @@ rule run_gwas:
             --pheno   {input.pheno} \
             --pheno-name Y \
             --keep    {input.train_ids} \
+            --chr     {params.chrom_num} \
             --covar   {input.pcs} \
             --covar-variance-standardize \
             --glm     no-x-sex hide-covar \
@@ -891,12 +893,31 @@ rule run_gwas:
             --threads 1 \
             --out     {params.gwas_prefix} \
             2> {log}
-        # Normalise output filename regardless of trait type
         OUTFILE=$(ls {params.gwas_prefix}.Y.glm.* 2>/dev/null | head -1)
         if [ -z "$OUTFILE" ]; then
             echo "ERROR: plink2 --glm produced no output" >> {log}; exit 1
         fi
         mv "$OUTFILE" {output.sumstats}
+        """
+
+
+rule merge_gwas:
+    """Concatenate per-chromosome GWAS results into a single sumstats file."""
+    input:
+        expand(
+            "results/gwas/{{sim_method}}/rep{{rep}}/{{trait}}/h2_{{h2}}/pc_{{p_causal}}/{{effect_dist}}/gwas_{chrom}.tsv",
+            chrom=CHROMS,
+        ),
+    output:
+        sumstats = "results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/sumstats.tsv",
+    log:
+        "logs/gwas/{sim_method}_rep{rep}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}_merge.log",
+    shell:
+        """
+        head -1 {input[0]} > {output.sumstats}
+        for f in {input}; do
+            tail -n +2 "$f" >> {output.sumstats}
+        done
         """
 
 

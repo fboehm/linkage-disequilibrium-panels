@@ -20,7 +20,7 @@ default-resources:
   slurm_jobname: "'smk_' + rule"
 
 # Maximum simultaneous SLURM jobs submitted by Snakemake.
-jobs: 200
+jobs: 800
 
 # Seconds Snakemake waits for output files to appear on the shared filesystem.
 latency-wait: 60
@@ -74,10 +74,10 @@ set-resources:
     mem_mb: 8000
     runtime: 120      # 2 h
 
-  # GWAS — genome-wide linear/logistic regression on 80k individuals
-  run_gwas:
+  # GWAS — one job per chromosome, 80k training individuals
+  run_gwas_chrom:
     mem_mb: 16000
-    runtime: 240      # 4 h
+    runtime: 60       # 1 h per chromosome
 
   # PRS-CS weight computation
   run_prscs:
