@@ -79,6 +79,15 @@ set-resources:
     mem_mb: 16000
     runtime: 60       # 1 h per chromosome
 
+  # PRS-CS LD reference — one job per chromosome (parallelised)
+  build_prscs_ref_chrom:
+    runtime: 480      # 8 h — large chromosomes with max panel (50k) can be slow
+
+  # Merge per-chromosome PRS-CS refs — just cp + cat, minimal resources
+  merge_prscs_ref:
+    mem_mb: 1000
+    runtime: 30
+
   # PRS-CS weight computation
   run_prscs:
     mem_mb: 4000

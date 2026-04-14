@@ -1057,34 +1057,36 @@ rule download_prscs_ref:
 
 
 # ── Step 8c-i: Build custom PRS-CS LD reference from panel genotypes ──────────
+# Split into one job per chromosome (build_prscs_ref_chrom) then assembled by
+# merge_prscs_ref.  The script writes {out}/ldblk_1kg_chr{N}.hdf5 + snpinfo per
+# chromosome; merge_prscs_ref copies HDF5s and concatenates snpinfo files into
+# the final ref_1kg directory expected by run_prscs.
 
-rule build_prscs_ref_custom:
-    """Build a PRS-CS HDF5 LD reference from the simulated/1KG panel BED file.
+rule build_prscs_ref_chrom:
+    """Build PRS-CS HDF5 LD reference for a single chromosome (parallelised).
 
-    LD block boundaries are found via the MDL criterion (Berisa & Pickrell 2016).
-    The output subdirectory is named 'ref_1kg' so PRScs.py parse_ldblk() accepts
-    it.  Runs once per (sim_method, rep, panel_ancestry, panel_n); all run_prscs
-    jobs for that combination share the output.
+    One SLURM job per (sim_method, rep, panel_ancestry, panel_n, chrom).
+    Outputs are temporary; merge_prscs_ref assembles the final ref_1kg directory.
     """
     input:
-        bed       = lambda wc: panel_bed(wc),
-        bim       = lambda wc: panel_bed(wc)[:-4] + ".bim",
-        fam       = lambda wc: panel_bed(wc)[:-4] + ".fam",
-        script    = "scripts/make_prscs_ref.py",
+        bed        = lambda wc: panel_bed(wc),
+        bim        = lambda wc: panel_bed(wc)[:-4] + ".bim",
+        fam        = lambda wc: panel_bed(wc)[:-4] + ".fam",
+        script     = "scripts/make_prscs_ref.py",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv"
-                                 if wc.sim_method == "hapnest_public" else [],
+                                  if wc.sim_method == "hapnest_public" else [],
     output:
-        sentinel = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
+        hdf5    = temp("results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/per_chrom/chr{chrom_n}/ref_1kg/ldblk_1kg_chr{chrom_n}.hdf5"),
+        snpinfo = temp("results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/per_chrom/chr{chrom_n}/ref_1kg/snpinfo_1kg_hm3"),
     params:
         bfile          = lambda wc, input: input.bed[:-4],
-        out_dir        = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg",
-        chroms         = " ".join(chrom_num(c) for c in CHROMS),
+        out_dir        = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/per_chrom/chr{chrom_n}/ref_1kg",
         n_panel        = lambda wc: wc.panel_n,
         seed           = sim_seed,
         max_block_size = 400,
         hm3_grch38_arg = lambda wc, input: f"--hm3-grch38 {input.hm3_grch38}"
                                             if wc.sim_method == "hapnest_public" else "",
-    log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}.log"
+    log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_chr{chrom_n}.log"
     resources:
         mem_mb = lambda wc: 32000 if int(wc.panel_n) >= 10000 else 8000,
     shell:
@@ -1094,12 +1096,47 @@ rule build_prscs_ref_custom:
         python3 {input.script} \
             --bfile          {params.bfile} \
             --out            {params.out_dir} \
-            --chroms         {params.chroms} \
+            --chroms         {wildcards.chrom_n} \
             --n-panel        {params.n_panel} \
             --seed           {params.seed} \
             --max-block-size {params.max_block_size} \
             {params.hm3_grch38_arg} \
             2> {log}
+        """
+
+
+rule merge_prscs_ref:
+    """Assemble per-chromosome PRS-CS LD references into the final ref_1kg directory.
+
+    Copies per-chromosome HDF5 files into ref_1kg/ and concatenates the per-
+    chromosome snpinfo tables (sorted by chromosome) into snpinfo_1kg_hm3.
+    The sentinel output path is what run_prscs uses as --ref-data.
+    """
+    input:
+        hdf5s    = lambda wc: expand(
+            "results/prscs_custom_ref/{{sim_method}}/rep{{rep}}/{{panel_ancestry}}/n{{panel_n}}/per_chrom/chr{cn}/ref_1kg/ldblk_1kg_chr{cn}.hdf5",
+            cn=sorted([c.lstrip("chr") for c in CHROMS], key=int),
+        ),
+        snpinfos = lambda wc: expand(
+            "results/prscs_custom_ref/{{sim_method}}/rep{{rep}}/{{panel_ancestry}}/n{{panel_n}}/per_chrom/chr{cn}/ref_1kg/snpinfo_1kg_hm3",
+            cn=sorted([c.lstrip("chr") for c in CHROMS], key=int),
+        ),
+    output:
+        sentinel = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
+    params:
+        ref_dir       = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg",
+        first_snpinfo = lambda wc, input: input.snpinfos[0],
+    log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_merge.log"
+    shell:
+        """
+        mkdir -p {params.ref_dir}
+        for f in {input.hdf5s}; do
+            cp "$f" {params.ref_dir}/
+        done
+        head -1 {params.first_snpinfo} > {output.sentinel}
+        for f in {input.snpinfos}; do
+            tail -n +2 "$f"
+        done >> {output.sentinel} 2> {log}
         """
 
 
