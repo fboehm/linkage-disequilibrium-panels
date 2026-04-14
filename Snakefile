@@ -56,6 +56,20 @@ EFFECT_DISTS    = config["effect_dists"]
 TRAIT_CONFIGS   = config["trait_configs"]
 TRAIT_LABELS    = list(TRAIT_CONFIGS.keys())
 
+# Under the gaussian (infinitesimal) model p_causal is ignored, so simulate
+# it only once using a canonical dummy value to avoid redundant jobs.
+GAUSSIAN_P_CAUSAL = P_CAUSAL_LEVELS[0]
+
+# All valid (p_causal, effect_dist) pairs — gaussian appears only once.
+PHENO_COMBOS = [
+    (pc, ed)
+    for ed in EFFECT_DISTS
+    for pc in (P_CAUSAL_LEVELS if ed != "gaussian" else [GAUSSIAN_P_CAUSAL])
+]
+
+# Top-k thresholds for precision-at-k evaluation (quantitative traits only).
+TOPK_LEVELS = config.get("topk_levels", [0.01, 0.05, 0.10, 0.20, 0.50])
+
 # ── Panel & method parameters ──────────────────────────────────────────────────
 
 # All panels use custom LD references built from HAPNEST public genotypes.
@@ -163,12 +177,14 @@ rule all:
             "results/plink/{sim_method}/{cohort}/rep{rep}/merged.bed",
             sim_method=SIM_METHODS, cohort=COHORTS, rep=REPS,
         ),
-        expand(
-            "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}"
-            "/{effect_dist}/pheno.pheno",
-            sim_method=SIM_METHODS, rep=REPS, trait=TRAIT_LABELS,
-            h2=H2_LEVELS, p_causal=P_CAUSAL_LEVELS, effect_dist=EFFECT_DISTS,
-        ),
+        [
+            f"results/phenotypes/{sm}/rep{rep}/{trait}/h2_{h2}/pc_{pc}/{ed}/pheno.pheno"
+            for sm    in SIM_METHODS
+            for rep   in REPS
+            for trait in TRAIT_LABELS
+            for h2    in H2_LEVELS
+            for (pc, ed) in PHENO_COMBOS
+        ],
 
 
 rule all_hapnest:
@@ -184,16 +200,15 @@ ALL_METRICS_FILES = [
     (
         f"results/evaluation/{method}/{sim_method}/rep{rep}"
         f"/{panel_ancestry}/n{panel_n}"
-        f"/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/metrics.tsv"
+        f"/{trait}/h2_{h2}/pc_{pc}/{ed}/metrics.tsv"
     )
-    for sim_method         in SIM_METHODS
-    for method             in PGS_METHODS
-    for rep                in REPS
+    for sim_method             in SIM_METHODS
+    for method                 in PGS_METHODS
+    for rep                    in REPS
     for (panel_ancestry, panel_n) in VALID_PANEL_COMBOS
-    for trait              in TRAIT_LABELS
-    for h2                 in H2_LEVELS
-    for p_causal           in P_CAUSAL_LEVELS
-    for effect_dist        in EFFECT_DISTS
+    for trait                  in TRAIT_LABELS
+    for h2                     in H2_LEVELS
+    for (pc, ed)               in PHENO_COMBOS
 ]
 
 
@@ -218,6 +233,76 @@ rule collect_all_metrics:
         Rscript {input.script} \
             --results-dir results/evaluation \
             --out         {output} \
+            2> {log}
+        """
+
+
+# ── Top-k precision evaluation ────────────────────────────────────────────────
+
+ALL_TOPK_FILES = [
+    (
+        f"results/evaluation/{method}/{sim_method}/rep{rep}"
+        f"/{panel_ancestry}/n{panel_n}"
+        f"/quantitative/h2_{h2}/pc_{pc}/{ed}/topk_metrics.tsv"
+    )
+    for sim_method         in SIM_METHODS
+    for method             in PGS_METHODS
+    for rep                in REPS
+    for (panel_ancestry, panel_n) in VALID_PANEL_COMBOS
+    for h2                 in H2_LEVELS
+    for (pc, ed)           in PHENO_COMBOS
+]
+
+
+rule all_topk:
+    """Precision-at-k evaluation for all scenarios (quantitative trait only)."""
+    input:
+        ALL_TOPK_FILES,
+        "results/summary/topk_metrics.tsv",
+
+
+rule collect_topk_metrics:
+    """Aggregate all per-scenario topk_metrics.tsv files into a single table."""
+    input:
+        metrics = ALL_TOPK_FILES,
+        script  = "scripts/collect_metrics.R",
+    output:
+        "results/summary/topk_metrics.tsv",
+    log: "logs/collect_topk_metrics.log"
+    shell:
+        """
+        module load R/4.4.3-gcc-11.2.0-mkl
+        Rscript {input.script} \
+            --results-dir results/evaluation \
+            --filename    topk_metrics.tsv \
+            --out         {output} \
+            2> {log}
+        """
+
+
+rule evaluate_topk:
+    """Compute precision-at-k for a single PGS scenario (quantitative only)."""
+    input:
+        scores   = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/quantitative/h2_{h2}/pc_{p_causal}/{effect_dist}/scores.sscore",
+        pheno    = "results/phenotypes/{sim_method}/rep{rep}/quantitative/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
+        test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
+        script   = "scripts/evaluate_topk.R",
+    output:
+        topk = "results/evaluation/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/quantitative/h2_{h2}/pc_{p_causal}/{effect_dist}/topk_metrics.tsv",
+    params:
+        k_levels = ",".join(str(k) for k in TOPK_LEVELS),
+    log:
+        "logs/topk/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
+    shell:
+        """
+        module load R/4.4.3-gcc-11.2.0-mkl
+        Rscript {input.script} \
+            --scores     {input.scores} \
+            --pheno      {input.pheno} \
+            --test-ids   {input.test_ids} \
+            --trait-type quantitative \
+            --k-levels   {params.k_levels} \
+            --out        {output.topk} \
             2> {log}
         """
 

@@ -22,6 +22,9 @@ opt_list <- list(
   make_option("--results-dir", type = "character",
               default = "results/evaluation",
               help = "Root of evaluation directory tree [default: %default]"),
+  make_option("--filename", type = "character",
+              default = "metrics.tsv",
+              help = "Filename to collect within the tree [default: %default]"),
   make_option("--out", type = "character",
               help = "Output TSV path")
 )
@@ -33,7 +36,7 @@ if (is.null(opt$out))
 # ── Discover all metrics files ─────────────────────────────────────────────────
 
 files <- list.files(opt$`results-dir`,
-                    pattern   = "^metrics\\.tsv$",
+                    pattern   = paste0("^", opt$filename, "$"),
                     recursive = TRUE,
                     full.names = TRUE)
 

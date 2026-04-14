@@ -113,6 +113,15 @@ pgs_methods:
 # Number of PCs to include as GWAS covariates (and in the evaluation models).
 n_pcs: 20
 
+# Top-k thresholds for precision-at-k evaluation (quantitative traits only).
+# Each value k gives the fraction of the test set considered "top".
+topk_levels:
+  - 0.01
+  - 0.05
+  - 0.10
+  - 0.20
+  - 0.50
+
 # EBI FTP base URL for 1KG Phase 3 phased VCFs.
 kg3_ebi_url: "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502"
 
