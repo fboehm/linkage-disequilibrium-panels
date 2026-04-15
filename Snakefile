@@ -864,6 +864,11 @@ rule run_gwas_chrom:
         pheno     = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
         train_ids = "results/splits/{sim_method}/rep{rep}/train.txt",
         pcs       = "results/pca/{sim_method}/gwas/rep{rep}/pcs.eigenvec",
+        hm3_snps  = lambda wc: (
+            "resources/hapmap3_sites_grch38.tsv"
+            if wc.sim_method == "hapnest_public"
+            else []
+        ),
     output:
         sumstats  = temp("results/gwas/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/gwas_{chrom}.tsv"),
     params:
@@ -879,6 +884,17 @@ rule run_gwas_chrom:
         """
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.sumstats})
+
+        # Build --extract argument: restrict to HapMap3 SNPs if hm3_snps provided
+        # The bim uses chr:pos:ref:alt IDs so we match by position (bed1 = 1-based ranges)
+        HM3="{input.hm3_snps}"
+        EXTRACT_ARG=""
+        if [ -n "$HM3" ]; then
+            TMP_IDS=$(mktemp)
+            awk 'NR>1 {{print $1, $2, $2}}' OFS='\t' "$HM3" > "$TMP_IDS"
+            EXTRACT_ARG="--extract bed1 $TMP_IDS"
+        fi
+
         plink2 \
             --bfile   {params.bed_prefix} \
             --pheno   {input.pheno} \
@@ -891,8 +907,12 @@ rule run_gwas_chrom:
             {params.binary_flag} \
             --no-psam-pheno \
             --threads 1 \
+            $EXTRACT_ARG \
             --out     {params.gwas_prefix} \
             2> {log}
+
+        [ -n "$HM3" ] && rm -f "$TMP_IDS"
+
         OUTFILE=$(ls {params.gwas_prefix}.Y.glm.* 2>/dev/null | head -1)
         if [ -z "$OUTFILE" ]; then
             echo "ERROR: plink2 --glm produced no output" >> {log}; exit 1
