@@ -27,7 +27,7 @@ mkdir -p logs/slurm
 # Target: all HAPNEST VCF outputs (gwas/target/panel) for every chromosome and
 # replicate.  Change 'all_hapnest' to 'all_pgs' to run the full PGS pipeline.
 
-export TMPDIR=/scratch/jacks.local/$USER/tmp
+export TMPDIR=/scratch/jacks.local/frederick.boehm/tmp
 mkdir -p $TMPDIR
 
 snakemake all_pgs \
