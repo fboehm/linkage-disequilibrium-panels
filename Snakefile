@@ -1287,7 +1287,7 @@ rule score_pgs_variance:
         var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
     log:
         "logs/score_var/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
-    threads: 4
+    threads: 8
     resources:
         mem_mb = 16000,
     shell:
