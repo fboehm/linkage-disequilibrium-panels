@@ -66,7 +66,7 @@ set-resources:
   # GWAS PCA — 80k training individuals; approx randomized SVD avoids n×n GRM
   run_pca_gwas:
     mem_mb: 8000
-    runtime: 120      # 2 h
+    runtime: 480      # 8 h (was 2 h for chr22 only; now full genome)
     cpus_per_task: 4
 
   # Test-set PCA projection — scoring only, low memory
@@ -77,7 +77,7 @@ set-resources:
   # GWAS — one job per chromosome, 80k training individuals
   run_gwas_chrom:
     mem_mb: 16000
-    runtime: 180      # 3 h per chromosome (chr22 was timing out at 1 h)
+    runtime: 180      # 3 h per chromosome
 
   # PRS-CS LD reference — one job per chromosome (parallelised)
   build_prscs_ref_chrom:
@@ -91,9 +91,10 @@ set-resources:
   # PRS-CS weight computation
   run_prscs:
     mem_mb: 4000
-    runtime: 360      # 6 h
+    runtime: 720      # 12 h (was 6 h for chr22 only; now full genome)
 
   # PGS posterior variance scoring — loads GWAS BED + SFBM into R
   score_pgs_variance:
     mem_mb: 32000
-    runtime: 480      # 8 h
+    runtime: 480      # 8 h (full-genome SFBM; scale with cpus_per_task if slow)
+    cpus_per_task: 8
