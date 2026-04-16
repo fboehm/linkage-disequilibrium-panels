@@ -1241,10 +1241,43 @@ rule score_test_set:
 
 # ── Step 10a: Per-individual posterior PGS variance ───────────────────────────
 
+rule extract_test_bed:
+    """Subset the GWAS merged BED to test-set individuals.
+
+    score_pgs_variance loads the full BED into R via bigsnpr; restricting to
+    test individuals here avoids reading 168k rows when only ~88k are needed.
+    One file per (sim_method, rep) — shared across all variance-scoring jobs.
+    """
+    input:
+        bed      = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
+        test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
+    output:
+        bed = "results/plink/{sim_method}/gwas/rep{rep}/test_merged.bed",
+        bim = "results/plink/{sim_method}/gwas/rep{rep}/test_merged.bim",
+        fam = "results/plink/{sim_method}/gwas/rep{rep}/test_merged.fam",
+    params:
+        in_prefix  = "results/plink/{sim_method}/gwas/rep{rep}/merged",
+        out_prefix = "results/plink/{sim_method}/gwas/rep{rep}/test_merged",
+    log:
+        "logs/extract_test_bed/{sim_method}_rep{rep}.log",
+    resources:
+        mem_mb = 8000,
+    shell:
+        """
+        module load plink/2.0-alpha
+        plink2 \
+            --bfile {params.in_prefix} \
+            --keep  {input.test_ids} \
+            --make-bed \
+            --out   {params.out_prefix} \
+            2> {log}
+        """
+
+
 rule score_pgs_variance:
     """Compute per-individual posterior PGS variance: Var(PGS_i) = w_i^T R w_i, w_i = sqrt(BETA_VAR) * G_i."""
     input:
-        bed      = "results/plink/{sim_method}/gwas/rep{rep}/merged.bed",
+        bed      = "results/plink/{sim_method}/gwas/rep{rep}/test_merged.bed",
         betas    = "results/pgs_weights/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
         test_ids = "results/splits/{sim_method}/rep{rep}/test.txt",
         ld_sfbm  = "results/ldpred2_work/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ld_sfbm.rds",
@@ -1254,6 +1287,7 @@ rule score_pgs_variance:
         var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
     log:
         "logs/score_var/{method}_{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
+    threads: 4
     resources:
         mem_mb = 16000,
     shell:
@@ -1267,6 +1301,7 @@ rule score_pgs_variance:
             --ld-sfbm  {input.ld_sfbm} \
             --ld-snps  {input.ld_snps} \
             --out      {output.var_scores} \
+            --ncores   {threads} \
             2> {log}
         """
 

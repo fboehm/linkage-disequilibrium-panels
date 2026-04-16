@@ -33,6 +33,7 @@ suppressPackageStartupMessages({
   library(bigsparser)
   library(data.table)
   library(optparse)
+  library(parallel)
 })
 
 opt_list <- list(
@@ -47,7 +48,9 @@ opt_list <- list(
   make_option("--ld-snps",  type = "character",
               help = "Path to matched_snps.tsv (SNP table saved by prepare_ldpred2_ref.R)"),
   make_option("--out",      type = "character",
-              help = "Output TSV: FID IID PGS_VAR")
+              help = "Output TSV: FID IID PGS_VAR"),
+  make_option("--ncores",   type = "integer", default = 1L,
+              help = "Number of cores for parallel variance computation [default: %default]")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -196,13 +199,16 @@ cat(sprintf("[score_pgs_variance] Genotype matrix: %d × %d\n",
 v     <- sqrt(beta_var_sfbm)          # length m_ld
 W     <- t(t(G_sub) * v)             # scale columns: W[i,j] = v[j] * G_sub[i,j]
 
-cat("[score_pgs_variance] Computing LD-aware per-individual PGS variance ...\n")
+cat(sprintf(
+  "[score_pgs_variance] Computing LD-aware PGS variance (%d cores) ...\n",
+  opt$ncores
+))
 
-pgs_var <- vapply(seq_len(nrow(W)), function(k) {
-  w_k  <- W[k, ]
-  Rw_k <- bigsparser::sp_prodVec(corr, w_k)
-  sum(w_k * Rw_k)
-}, numeric(1L))
+pgs_var <- unlist(mclapply(seq_len(nrow(W)), function(k) {
+  w_k   <- W[k, ]
+  rw_k  <- bigsparser::sp_prodVec(corr, w_k)
+  sum(w_k * rw_k)
+}, mc.cores = opt$ncores))
 
 # ── Write output ─────────────────────────────────────────────────────────────
 out_df <- data.table(
