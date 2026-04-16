@@ -558,7 +558,7 @@ rule make_grch38_rsid_map:
         bcftools query \
             --format '%CHROM\t%POS\t%ID\t%REF\t%ALT\n' \
             {input.vcf} \
-        | awk '{{gsub(/^chr/, "", $1); print}}' \
+        | awk 'BEGIN{{OFS="\t"}} {{gsub(/^chr/, "", $1); $1=$1; print}}' \
         | bgzip \
         > {output.tsv} \
         2> {log}
