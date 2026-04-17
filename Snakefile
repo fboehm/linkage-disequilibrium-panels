@@ -667,7 +667,7 @@ rule filter_vcf:
         module load bcftools/1.19
         CHROM_N=$(echo {wildcards.chrom} | sed 's/chr//')
         TMP_POS=$(mktemp)
-        awk -v c="$CHROM_N" 'NR>1 && $1==c {{print "chr"c"\t"$2}}' {input.hm3} > "$TMP_POS"
+        awk -v c="$CHROM_N" 'NR>1 && $1==c {{print c"\t"$2}}' {input.hm3} > "$TMP_POS"
         bcftools view \
             --targets-file "$TMP_POS" \
             --min-af {params.maf}:minor \
