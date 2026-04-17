@@ -130,12 +130,18 @@ def load_genotypes(bed_path, chrom_snps, ind_idx, n_total_inds):
 # ── MDL block detection ────────────────────────────────────────────────────────
 
 def standardize(G):
-    """Return float64 zero-mean, unit-variance standardized genotype matrix."""
+    """Return float64 zero-mean, unit-variance standardized genotype matrix.
+
+    Uses in-place operations to avoid allocating intermediate arrays.
+    Peak memory is one float32 copy (input) + one float64 copy (output).
+    """
     G   = G.astype(np.float64)
     mu  = G.mean(axis=0)
     sd  = G.std(axis=0)
     sd[sd == 0] = 1.0
-    return (G - mu) / sd
+    G  -= mu
+    G  /= sd
+    return G
 
 
 def precompute_banded_corr(G_std, max_block_size):
@@ -261,8 +267,9 @@ def compute_ld_blocks_mdl(G, snps, max_block_size):
     snp_blocks : list of lists of rsID strings (one list per block)
     """
     n_ind   = G.shape[0]
-    G_std   = standardize(G)
     m       = G.shape[1]
+    G_std   = standardize(G)
+    del G   # free float32 matrix; G_std (float64) is all we need from here on
 
     print(f"    Precomputing banded correlation (max offset={max_block_size}) ...",
           file=sys.stderr, flush=True)

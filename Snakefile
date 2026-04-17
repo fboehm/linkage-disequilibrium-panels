@@ -1108,7 +1108,7 @@ rule build_prscs_ref_chrom:
                                             if wc.sim_method == "hapnest_public" else "",
     log: "logs/prscs_ref_custom/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_chr{chrom_n}.log"
     resources:
-        mem_mb = lambda wc: 32000 if int(wc.panel_n) >= 10000 else 8000,
+        mem_mb = lambda wc: 64000 if int(wc.panel_n) >= 10000 else 8000,
     shell:
         """
         module load python/3.12
