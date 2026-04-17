@@ -651,9 +651,10 @@ rule extract_1kg_population:
 # ── Step 2: Filter each simulated VCF ─────────────────────────────────────────
 
 rule filter_vcf:
-    """Filter to biallelic SNPs with MAF >= threshold."""
+    """Filter to biallelic SNPs with MAF >= threshold, restricted to HapMap3 sites."""
     input:
         vcf = "results/vcf/{sim_method}/rep{rep}/{cohort}_{chrom}.vcf.gz",
+        hm3 = "resources/hapmap3_sites_grch38.tsv",
     output:
         vcf = "results/vcf_filtered/{sim_method}/rep{rep}/{cohort}_{chrom}.vcf.gz",
         tbi = "results/vcf_filtered/{sim_method}/rep{rep}/{cohort}_{chrom}.vcf.gz.tbi",
@@ -664,7 +665,11 @@ rule filter_vcf:
     shell:
         """
         module load bcftools/1.19
+        CHROM_N=$(echo {wildcards.chrom} | sed 's/chr//')
+        TMP_POS=$(mktemp)
+        awk -v c="$CHROM_N" 'NR>1 && $1==c {{print "chr"c"\t"$2}}' {input.hm3} > "$TMP_POS"
         bcftools view \
+            --targets-file "$TMP_POS" \
             --min-af {params.maf}:minor \
             --max-alleles 2 \
             --min-alleles 2 \
@@ -672,6 +677,7 @@ rule filter_vcf:
             --output-type z \
             --output {output.vcf} \
             {input.vcf} 2> {log}
+        rm -f "$TMP_POS"
         tabix -p vcf {output.vcf} 2>> {log}
         """
 
