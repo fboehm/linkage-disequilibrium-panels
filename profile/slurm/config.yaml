@@ -65,7 +65,7 @@ set-resources:
 
   # GWAS PCA — 80k training individuals; approx randomized SVD avoids n×n GRM
   run_pca_gwas:
-    mem_mb: 8000
+    mem_mb: 32000
     runtime: 480      # 8 h (was 2 h for chr22 only; now full genome)
     cpus_per_task: 4
 

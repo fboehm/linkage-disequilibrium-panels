@@ -814,7 +814,7 @@ rule run_pca_gwas:
         EXTRACT_ARG=""
         if [ -n "$HM3" ]; then
             TMP_IDS=$(mktemp)
-            awk 'NR>1 {{print $1, $2, $2}}' OFS='\t' "$HM3" > "$TMP_IDS"
+            awk 'BEGIN{{OFS="\t"}} NR>1 {{print $1, $2-1, $2}}' "$HM3" > "$TMP_IDS"
             EXTRACT_ARG="--extract bed1 $TMP_IDS"
         fi
 
@@ -897,7 +897,7 @@ rule run_gwas_chrom:
         EXTRACT_ARG=""
         if [ -n "$HM3" ]; then
             TMP_IDS=$(mktemp)
-            awk 'NR>1 {{print $1, $2, $2}}' OFS='\t' "$HM3" > "$TMP_IDS"
+            awk 'BEGIN{{OFS="\t"}} NR>1 {{print $1, $2-1, $2}}' "$HM3" > "$TMP_IDS"
             EXTRACT_ARG="--extract bed1 $TMP_IDS"
         fi
 
