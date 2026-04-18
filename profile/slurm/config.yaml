@@ -93,6 +93,12 @@ set-resources:
     mem_mb: 4000
     runtime: 720      # 12 h (was 6 h for chr22 only; now full genome)
 
+  # Hapnest public VCF extraction — plink2 uses 4 threads
+  extract_hapnest_public_vcf:
+    mem_mb: 16000
+    runtime: 360
+    cpus_per_task: 4
+
   # PGS posterior variance scoring — loads GWAS BED + SFBM into R
   score_pgs_variance:
     mem_mb: 32000
