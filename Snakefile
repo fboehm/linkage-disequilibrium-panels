@@ -464,7 +464,7 @@ rule extract_hapnest_public_vcf:
     threads: 4
     resources:
         mem_mb  = 16000,
-        runtime = 120,
+        runtime = 360,
     shell:
         """
         module load plink/2.0-alpha
