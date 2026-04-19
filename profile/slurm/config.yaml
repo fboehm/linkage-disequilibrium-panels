@@ -102,6 +102,6 @@ set-resources:
 
   # PGS posterior variance scoring — loads GWAS BED + SFBM into R
   score_pgs_variance:
-    mem_mb: 32000
+    mem_mb: 64000
     runtime: 480      # 8 h (full-genome SFBM; scale with cpus_per_task if slow)
     cpus_per_task: 8

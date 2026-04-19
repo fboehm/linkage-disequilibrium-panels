@@ -185,28 +185,25 @@ if (n_in_bed == 0L)
   write_na_output(fam$FID[ind_row], fam$IID[ind_row], opt$out,
                   "no SFBM SNPs found in BED file")
 
-# ── Extract test-set genotypes for all SFBM SNPs ────────────────────────────
-# G_sub[i, j] = dosage for test individual i at SFBM SNP j (0 where not in BED)
-in_bed  <- !is.na(ind_col_sfbm)
-G_sub   <- matrix(0.0, nrow = length(ind_row), ncol = m_ld)
-G_sub[, in_bed] <- as.matrix(G[ind_row, ind_col_sfbm[in_bed]])
-
-cat(sprintf("[score_pgs_variance] Genotype matrix: %d × %d\n",
-            nrow(G_sub), ncol(G_sub)))
-
 # ── Compute LD-aware variance: Var(PGS_i) = w_i^T R w_i ─────────────────────
-# w_i = sqrt(BETA_VAR) * G_sub[i, ]  (element-wise scaling of each row)
-v     <- sqrt(beta_var_sfbm)          # length m_ld
-W     <- t(t(G_sub) * v)             # scale columns: W[i,j] = v[j] * G_sub[i,j]
+# Process one individual at a time to avoid building an n_test × m_ld dense
+# matrix (which can exhaust memory when m_ld is large).
+in_bed           <- !is.na(ind_col_sfbm)
+sfbm_cols_in_bed <- ind_col_sfbm[in_bed]   # BED column indices for matched SNPs
+v                <- sqrt(beta_var_sfbm)    # length m_ld
 
 cat(sprintf(
-  "[score_pgs_variance] Computing LD-aware PGS variance (%d cores) ...\n",
-  opt$ncores
+  "[score_pgs_variance] Computing LD-aware PGS variance (%d cores, %d individuals) ...\n",
+  opt$ncores, length(ind_row)
 ))
 
-pgs_var <- unlist(mclapply(seq_len(nrow(W)), function(k) {
-  w_k   <- W[k, ]
-  rw_k  <- bigsparser::sp_prodVec(corr, w_k)
+pgs_var <- unlist(mclapply(seq_along(ind_row), function(k) {
+  w_k <- numeric(m_ld)
+  if (length(sfbm_cols_in_bed) > 0L) {
+    g_k         <- as.integer(G[ind_row[k], sfbm_cols_in_bed])
+    w_k[in_bed] <- v[in_bed] * g_k
+  }
+  rw_k <- bigsparser::sp_prodVec(corr, w_k)
   sum(w_k * rw_k)
 }, mc.cores = opt$ncores))
 
