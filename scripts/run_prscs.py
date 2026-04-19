@@ -176,14 +176,27 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
     bp_col  = bim["BP"].astype(int)
     bim["_rsID"] = [lookup.get((c, b)) for c, b in zip(chr_col, bp_col)]
     bim = bim[bim["_rsID"].notna()].copy()
-    rsid_to_orig_id = dict(zip(bim["_rsID"], bim["SNP"]))
+    # Capture original positional IDs before overwriting SNP column
+    orig_snp_ids = bim["SNP"].values.copy()
     bim["SNP"] = bim["_rsID"]
     bim["CHR"] = chr_col[bim.index]
     bim.drop(columns=["_rsID"], inplace=True)
+    print(f"[run_prscs] {len(bim)} bim SNPs mapped to rsIDs", file=sys.stderr)
+
+    # Deduplicate BIM by rsID: multi-allelic sites produce duplicate rsIDs which
+    # cause an IndexError in PRScs parse_ldblk. Keep first occurrence.
+    keep_mask = ~bim["SNP"].duplicated()
+    n_bim_dropped = (~keep_mask).sum()
+    if n_bim_dropped > 0:
+        print(f"[run_prscs] WARNING: dropped {n_bim_dropped} duplicate rsID(s) from BIM multi-allelic sites",
+              file=sys.stderr)
+    orig_snp_ids = orig_snp_ids[keep_mask.values]
+    bim = bim[keep_mask]
+
+    rsid_to_orig_id = dict(zip(bim["SNP"], orig_snp_ids))
 
     new_bim_prefix = os.path.join(tmpdir, "rsid_bim")
     bim.to_csv(f"{new_bim_prefix}.bim", sep="\t", header=False, index=False)
-    print(f"[run_prscs] {len(bim)} bim SNPs mapped to rsIDs", file=sys.stderr)
 
     return ss, new_bim_prefix, rsid_to_orig_id
 
