@@ -160,6 +160,15 @@ def remap_to_rsids(ss: pd.DataFrame, ref_dir: str, bim_prefix: str,
     ss["ID"] = ss["_rsID"]
     ss.drop(columns=["_rsID"], inplace=True)
 
+    # Deduplicate by rsID: multi-allelic sites (two SNPs at same position) get
+    # the same rsID; PRScs indexes by position and will crash on duplicates.
+    n_before = len(ss)
+    ss = ss.drop_duplicates(subset=["ID"])
+    n_dropped = n_before - len(ss)
+    if n_dropped > 0:
+        print(f"[run_prscs] WARNING: dropped {n_dropped} duplicate rsID(s) from multi-allelic sites",
+              file=sys.stderr)
+
     # ── remap bim ─────────────────────────────────────────────────────────────
     bim = pd.read_csv(f"{bim_prefix}.bim", sep="\t", header=None,
                       names=["CHR", "SNP", "CM", "BP", "A1", "A2"])
