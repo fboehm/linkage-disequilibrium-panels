@@ -148,6 +148,14 @@ ss_key <- ss[, .(chr = CHROM, pos = POS, ID, REF, A1, BETA, SE)]
 # Merge on chr+pos (works with positional IDs and cross-build data)
 merged <- ss_key[matched_snps, on = c("chr", "pos"), nomatch = NA]
 
+# Deduplicate by sfbm_row: multi-allelic sites (two GWAS SNPs at same position)
+# produce one extra row per duplicated position; keep the first match.
+if (anyDuplicated(merged$sfbm_row)) {
+  n_dup <- sum(duplicated(merged$sfbm_row))
+  cat(sprintf("[ldpred2] WARNING: dropping %d duplicate sfbm_row(s) from multi-allelic sites\n", n_dup))
+  merged <- merged[!duplicated(merged$sfbm_row), ]
+}
+
 # Determine per-SNP beta after potential allele flip
 # If FLIP == TRUE (stored as 1 in TSV), the panel a0 == ss A1, so negate beta
 if ("FLIP" %in% names(merged)) {
