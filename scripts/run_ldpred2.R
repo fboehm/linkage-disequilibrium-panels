@@ -40,6 +40,8 @@ opt_list <- list(
               help = "Total training-set sample size"),
   make_option("--seed",       type = "integer",   default = 1L,
               help = "Random seed [default: %default]"),
+  make_option("--ncores",     type = "integer",   default = 1L,
+              help = "Number of cores for LDSC and LDpred2-auto [default: %default]"),
   make_option("--out",        type = "character",
               help = "Output TSV: SNP  A1  BETA")
 )
@@ -199,23 +201,13 @@ info_snp <- data.frame(
 # ── LD score regression for h2 initialisation ────────────────────────────────
 
 cat("[ldpred2] Running LDSC for h2 initialisation ...\n")
-ldsc_res <- tryCatch({
-  ld_scores <- Matrix::colSums(corr^2)
-  with(info_snp,
-       snp_ldsc(
-         ld_score    = ld_scores,
-         ld_size     = nrow(info_snp),
-         chi2        = (beta / beta_se)^2,
-         sample_size = n_eff,
-         blocks      = NULL,
-         intercept   = NULL
-       )
-  )
-},
-error = function(e) {
-  message("[ldpred2] LDSC failed (", conditionMessage(e), "); using h2_init = 0.1")
-  list(h2 = 0.1)
-})
+ldsc_res <- tryCatch(
+  snp_ldsc2(corr, info_snp, ncores = opt$ncores),
+  error = function(e) {
+    message("[ldpred2] snp_ldsc2 failed (", conditionMessage(e), "); using h2_init = 0.1")
+    list(h2 = 0.1)
+  }
+)
 h2_init <- max(ldsc_res[["h2"]], 1e-4)
 cat(sprintf("[ldpred2] LDSC h2 estimate: %.4f  (used as init)\n", h2_init))
 
@@ -233,7 +225,7 @@ multi_auto <- snp_ldpred2_auto(
   report_step     = 100L,
   allow_jump_sign = FALSE,
   shrink_corr     = 0.95,
-  ncores          = 1L
+  ncores          = opt$ncores
 )
 
 # Filter to converged chains

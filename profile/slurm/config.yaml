@@ -64,6 +64,12 @@ set-resources:
     runtime: 1440     # 24 h
     cpus_per_task: 4
 
+  # LDpred2-auto — 30 chains × 1000 iterations, parallelised across chains
+  run_ldpred2:
+    mem_mb: 32000
+    runtime: 720      # 12 h
+    cpus_per_task: 4
+
   # GWAS PCA — 80k training individuals; approx randomized SVD avoids n×n GRM
   run_pca_gwas:
     mem_mb: 32000

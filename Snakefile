@@ -1019,6 +1019,7 @@ rule run_ldpred2:
         seed       = lambda wc: BASE_SEED + int(wc.rep),
     log:
         "logs/ldpred2/{sim_method}_rep{rep}_{panel_ancestry}_n{panel_n}_{trait}_h2_{h2}_pc_{p_causal}_{effect_dist}.log",
+    threads: 4
     resources:
         mem_mb = 24000,
     shell:
@@ -1032,6 +1033,7 @@ rule run_ldpred2:
             --trait-type {params.trait_type} \
             --n-train    {params.n_train} \
             --seed       {params.seed} \
+            --ncores     {threads} \
             --out        {output.betas} \
             > {log} 2>&1
         """
