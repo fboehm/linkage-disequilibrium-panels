@@ -222,7 +222,7 @@ multi_auto <- snp_ldpred2_auto(
   vec_p_init      = seq_log(1e-4, 0.9, length.out = 30L),
   burn_in         = 500L,
   num_iter        = 500L,
-  report_step     = 100L,
+  report_step     = 5L,
   allow_jump_sign = FALSE,
   shrink_corr     = 0.95,
   ncores          = opt$ncores
@@ -240,15 +240,36 @@ cat(sprintf("[ldpred2] %d / %d chains converged\n",
 if (!any(converged)) converged[] <- TRUE
 
 beta_mat <- sapply(multi_auto[converged], `[[`, "beta_est")
-if (is.matrix(beta_mat)) {
-  betas_final <- rowMeans(beta_mat)
-  betas_var   <- matrixStats::rowVars(beta_mat)
+betas_final <- if (is.matrix(beta_mat)) rowMeans(beta_mat) else beta_mat
+
+# Posterior variance from pooled per-iteration MCMC draws across converged chains.
+# sample_beta is stored on the standardised scale (beta * sd); divide variance by sd^2.
+sample_mats <- lapply(multi_auto[converged], `[[`, "sample_beta")
+has_samples <- length(sample_mats) > 0L &&
+  all(vapply(sample_mats,
+             function(m) !is.null(m) && ncol(m) > 0L,
+             logical(1)))
+
+if (has_samples) {
+  all_samples <- do.call(cbind, sample_mats)
+  n_samp      <- ncol(all_samples)
+  row_mean    <- Matrix::rowMeans(all_samples)
+  row_sqmean  <- Matrix::rowMeans(all_samples * all_samples)
+  var_std     <- (row_sqmean - row_mean^2) * n_samp / max(n_samp - 1L, 1L)
+  sd_snp      <- 1 / sqrt(info_snp$n_eff * info_snp$beta_se^2 + info_snp$beta^2)
+  betas_var   <- as.numeric(var_std) / sd_snp^2
+  cat(sprintf("[ldpred2] Posterior variance from %d MCMC samples across %d converged chains\n",
+              n_samp, sum(converged)))
 } else {
-  betas_final <- beta_mat
-  betas_var   <- rep(NA_real_, length(beta_mat))
+  cat("[ldpred2] WARNING: sample_beta unavailable; falling back to between-chain variance\n")
+  betas_var <- if (is.matrix(beta_mat))
+    matrixStats::rowVars(beta_mat)
+  else
+    rep(NA_real_, length(beta_mat))
 }
 
 betas_final[is.na(betas_final)] <- 0
+betas_var[is.na(betas_var)]     <- 0
 
 h2_final <- mean(sapply(multi_auto[converged], `[[`, "h2_est"))
 p_final  <- mean(sapply(multi_auto[converged], `[[`, "p_est"))
