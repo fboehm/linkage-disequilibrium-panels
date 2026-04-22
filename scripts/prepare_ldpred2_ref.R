@@ -17,7 +17,7 @@
 #       --panel-bed    results/plink/panel/rep1/merged.bed \
 #       --ref-sumstats results/gwas/rep1/quantitative/h2_0.1/pc_0.001/gaussian/sumstats.tsv \
 #       --out-dir      results/ldpred2_work/rep1/shared \
-#       --window       3000000 \
+#       --window       3000 \
 #       --ncores       4
 
 suppressPackageStartupMessages({
@@ -34,8 +34,8 @@ opt_list <- list(
               help = "Reference linear-regression sumstats (BETA/SE columns)"),
   make_option("--out-dir",      type = "character",
               help = "Directory for all output files"),
-  make_option("--window",       type = "double",   default = 3e6,
-              help = "LD window size in bp [default: 3e6]"),
+  make_option("--window",       type = "double",   default = 3000,
+              help = "LD window size in kb (snp_cor size=, kb when infos.pos given) [default: 3000]"),
   make_option("--ncores",       type = "integer",  default = 1L,
               help = "Number of cores for snp_cor [default: 1]"),
   make_option("--n-panel",      type = "integer",  default = NULL,
@@ -186,7 +186,7 @@ if (!is.null(opt$`hm3-positions`)) {
 
 # ── 3. Compute sparse LD matrix (SFBM) ────────────────────────────────────────
 
-cat(sprintf("[prepare_ldpred2_ref] Computing LD matrix (window = %.0f bp, ncores = %d) ...\n",
+cat(sprintf("[prepare_ldpred2_ref] Computing LD matrix (window = %.0f kb, ncores = %d) ...\n",
             opt$window, opt$ncores), flush = TRUE)
 
 chromosomes <- sort(unique(info_ref$chr))
