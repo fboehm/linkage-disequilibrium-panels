@@ -222,7 +222,7 @@ multi_auto <- snp_ldpred2_auto(
   vec_p_init      = seq_log(1e-4, 0.9, length.out = 30L),
   burn_in         = 500L,
   num_iter        = 500L,
-  report_step     = 5L,
+  report_step     = 20L,   # 500 / 20 = 25 stored samples per chain
   allow_jump_sign = FALSE,
   shrink_corr     = 0.95,
   ncores          = opt$ncores
