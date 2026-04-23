@@ -31,7 +31,6 @@ export TMPDIR=/scratch/jacks.local/frederick.boehm/tmp
 mkdir -p $TMPDIR
 
 snakemake all_pgs \
-#snakemake results/evaluation/prscs/hapnest_public/rep1/hapnest_AMR/n500/quantitative/h2_0.4/pc_0.001/gaussian/metrics.tsv \
     --profile profile/slurm \
     --config sim_methods="[hapnest_public]" \
     --rerun-incomplete \
