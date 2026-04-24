@@ -12,7 +12,7 @@ executor: slurm
 
 # Default resources applied to every job unless overridden below.
 default-resources:
-  slurm_partition: compute
+  slurm_partition: "compute,quickq"
   slurm_account: math
   mem_mb: 4000
   runtime: 360        # minutes (6 h)
