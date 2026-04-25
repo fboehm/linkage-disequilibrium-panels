@@ -61,13 +61,13 @@ set-resources:
   # LD reference computation — most memory-intensive step (SFBM build)
   prepare_ldpred2_ref:
     mem_mb: 64000
-    runtime: 1440     # 24 h
+    runtime: 720      # 12 h
     cpus_per_task: 4
 
   # LDpred2-auto — 30 chains × 1000 iterations, parallelised across chains
   run_ldpred2:
     mem_mb: 32000
-    runtime: 1440     # 24 h
+    runtime: 720      # 12 h
     cpus_per_task: 30
 
   # GWAS PCA — 80k training individuals; approx randomized SVD avoids n×n GRM
