@@ -352,10 +352,12 @@ def main():
         # into memory (e.g. 100k SNPs → ~5k HM3 SNPs).
         if hm3_lookup:
             hm3_snps = []
+            seen_rsids = set()
             for s in chrom_snps:
                 rsid = hm3_lookup.get((str(chrom), s["pos"]))
-                if rsid:
+                if rsid and rsid not in seen_rsids:
                     hm3_snps.append(dict(s, rsid=rsid))
+                    seen_rsids.add(rsid)
             print(f"chr{chrom}: {len(hm3_snps)} / {len(chrom_snps)} SNPs have HM3 rsIDs",
                   file=sys.stderr, flush=True)
             if not hm3_snps:
