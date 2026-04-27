@@ -29,6 +29,10 @@ latency-wait: 60
 # Re-run any jobs whose output files are incomplete (e.g. from a cancelled run).
 rerun-incomplete: true
 
+# Auto-retry transient SLURM/cluster failures (e.g. srun "Communication
+# connection failure" when launching a step on a flaky node).
+restart-times: 2
+
 # Per-rule resource overrides.
 # These supplement (or override) the resources already declared in the Snakefile.
 set-resources:

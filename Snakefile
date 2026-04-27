@@ -1232,18 +1232,32 @@ rule score_test_set:
         module load plink/2.0-alpha
         mkdir -p $(dirname {output.sscore})
         TMP_BIM=$(mktemp --suffix=.bim)
+        TMP_BETAS=$(mktemp --suffix=.tsv)
         awk 'BEGIN{{OFS="\t"}} $2=="." {{chrom=$1; sub(/^chr/,"",chrom); $2=chrom":"$4":"$6":"$5}} {{print}}' \
             {params.bed_prefix}.bim > "$TMP_BIM"
+        # Remap betas IDs to the bim's allele ordering when only the order differs.
+        # plink2 --score auto-flips BETA on A1 mismatch, so scoring stays correct.
+        awk 'BEGIN{{OFS="\t"}} NR==FNR {{ids[$2]=1; next}}
+             FNR==1 {{print; next}}
+             {{ id=$1
+                if (id in ids) {{print; next}}
+                n=split(id, p, ":")
+                if (n==4) {{
+                  flipped=p[1]":"p[2]":"p[4]":"p[3]
+                  if (flipped in ids) {{$1=flipped; print; next}}
+                }}
+                print
+             }}' "$TMP_BIM" {input.betas} > "$TMP_BETAS"
         plink2 \
             --bed     {params.bed_prefix}.bed \
             --bim     "$TMP_BIM" \
             --fam     {params.bed_prefix}.fam \
             --keep    {input.test_ids} \
-            --score   {input.betas} 1 2 3 header \
+            --score   "$TMP_BETAS" 1 2 3 header \
             --threads 1 \
             --out     {params.score_prefix} \
             2> {log}
-        rm -f "$TMP_BIM"
+        rm -f "$TMP_BIM" "$TMP_BETAS"
         """
 
 
