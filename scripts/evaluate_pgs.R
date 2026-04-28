@@ -133,27 +133,37 @@ if (opt$`trait-type` == "quantitative") {
   # Marginal AUC of the raw PGS (rank-based, no external packages)
   auc_raw <- wilcoxon_auc(df$SCORE1_AVG, df$Y)
 
-  # PC-adjusted AUC: residualise PGS on PCs, then compute AUC of residuals
-  if (length(pc_cols) > 0L) {
-    pgs_resid <- residuals(
-      lm(as.formula(paste("SCORE1_AVG ~", paste(pc_cols, collapse = " + "))), data = df)
-    )
-    auc_adj <- wilcoxon_auc(pgs_resid, df$Y)
-  } else {
-    auc_adj <- auc_raw
-  }
+  # Incremental AUC: AUC of (Y ~ PGS + PCs) minus AUC of (Y ~ PCs).
+  # Logit is monotonic, so we can take AUC of the linear predictor directly.
+  fit_null <- if (length(pc_cols) > 0L)
+    glm(as.formula(paste("Y ~", paste(pc_cols, collapse = " + "))),
+        data = df, family = binomial())
+  else
+    glm(Y ~ 1, data = df, family = binomial())
+
+  fit_full <- if (length(pc_cols) > 0L)
+    glm(as.formula(paste("Y ~ SCORE1_AVG +", paste(pc_cols, collapse = " + "))),
+        data = df, family = binomial())
+  else
+    glm(Y ~ SCORE1_AVG, data = df, family = binomial())
+
+  auc_null <- wilcoxon_auc(predict(fit_null, type = "link"), df$Y)
+  auc_full <- wilcoxon_auc(predict(fit_full, type = "link"), df$Y)
+  auc_incr <- auc_full - auc_null
 
   n1 <- sum(df$Y == 1L)
   n0 <- sum(df$Y == 0L)
   metrics <- data.frame(
-    metric     = c("AUC_raw", "AUC_adjusted"),
-    value      = c(auc_raw,   auc_adj),
+    metric     = c("AUC_raw", "AUC_full", "AUC_null", "AUC_incremental"),
+    value      = c(auc_raw,   auc_full,   auc_null,   auc_incr),
     n          = nrow(df),
     n_cases    = n1,
     n_controls = n0
   )
-  cat(sprintf("[evaluate_pgs] AUC_raw = %.4f  AUC_adj = %.4f  (n_cases = %d, n_controls = %d)\n",
-              auc_raw, auc_adj, n1, n0))
+  cat(sprintf(paste0("[evaluate_pgs] AUC_raw = %.4f  AUC_full = %.4f  ",
+                     "AUC_null = %.4f  AUC_incr = %.4f  ",
+                     "(n_cases = %d, n_controls = %d)\n"),
+              auc_raw, auc_full, auc_null, auc_incr, n1, n0))
 }
 
 # ── Per-individual PGS variance (optional) ───────────────────────────────────
@@ -167,7 +177,8 @@ if (!is.null(opt$`var-scores`)) {
   if (nrow(var_df) > 0L) {
     pgs_var_mean   <- mean(var_df$PGS_VAR)
     pgs_var_median <- median(var_df$PGS_VAR)
-    cat(sprintf("[evaluate_pgs] PGS posterior variance: mean = %.4g  median = %.4g\n",
+    cat(sprintf(paste0("[evaluate_pgs] PGS posterior variance: ",
+                       "mean = %.4g  median = %.4g\n"),
                 pgs_var_mean, pgs_var_median))
     var_rows <- data.frame(
       metric = c("pgs_var_mean", "pgs_var_median"),

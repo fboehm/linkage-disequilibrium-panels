@@ -61,7 +61,7 @@ ancestry_colours <- c(
 # ── 1. AUC vs panel size (binary traits, averaged over replicates & p_causal) ──
 
 auc <- d |>
-  filter(metric == "AUC_adjusted", trait %in% c("binary_prev10", "binary_prev30")) |>
+  filter(metric == "AUC_incremental", trait %in% c("binary_prev10", "binary_prev30")) |>
   group_by(method, panel_ancestry, panel_n_f, panel_n, h2_f, trait, effect_dist) |>
   summarise(mean_val = mean(value, na.rm = TRUE),
             se_val   = sd(value, na.rm = TRUE) / sqrt(n()),
@@ -124,7 +124,7 @@ save_plot(p2, "02_r2_vs_panelN", w = 12, h = 10)
 # ── 3. Method comparison: ldpred2 vs prscs (scatter, one point per scenario) ──
 
 wide_method <- d |>
-  filter(metric %in% c("AUC_adjusted", "R2_full")) |>
+  filter(metric %in% c("AUC_incremental", "R2_full")) |>
   tidyr::pivot_wider(
     id_cols     = c(sim_method, rep, panel_ancestry, panel_n, trait, h2, p_causal, effect_dist, metric),
     names_from  = method,
@@ -148,7 +148,7 @@ save_plot(p3, "03_method_scatter", w = 10, h = 10)
 
 # ── 4. Accuracy by ancestry (box plots, best large-panel scenarios only) ───────
 
-large <- d |> filter(panel_n >= 5000, metric %in% c("AUC_adjusted", "R2_full"))
+large <- d |> filter(panel_n >= 5000, metric %in% c("AUC_incremental", "R2_full"))
 
 p4 <- ggplot(large, aes(panel_ancestry, value,
                         fill = method)) +
@@ -249,7 +249,7 @@ save_plot(p7, "07_pgs_variance_vs_panelN", w = 12, h = 6)
 amr_vals <- d |>
   filter(
     panel_ancestry == "hapnest_AMR",
-    metric %in% c("R2_full", "AUC_adjusted")
+    metric %in% c("R2_full", "AUC_incremental")
   ) |>
   group_by(method, panel_n, metric, trait, h2_f, effect_dist) |>
   summarise(mean_val = mean(value, na.rm = TRUE),
@@ -279,10 +279,10 @@ p8_base <- function(metric_sel, trait_sel, ylabel) {
 p8a <- p8_base("R2_full", "quantitative", "Mean R\u00b2") +
   ggtitle("R\u00b2 vs panel size: hapnest_AMR \u2014 quantitative")
 
-p8b <- p8_base("AUC_adjusted", "binary_prev10", "Mean AUC") +
+p8b <- p8_base("AUC_incremental", "binary_prev10", "Mean AUC") +
   ggtitle("AUC vs panel size: hapnest_AMR \u2014 binary (prev = 0.10)")
 
-p8c <- p8_base("AUC_adjusted", "binary_prev30", "Mean AUC") +
+p8c <- p8_base("AUC_incremental", "binary_prev30", "Mean AUC") +
   ggtitle("AUC vs panel size: hapnest_AMR \u2014 binary (prev = 0.30)")
 
 save_plot(p8a, "08a_r2_amr",        w = 12, h = 10)
