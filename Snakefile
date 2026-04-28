@@ -1011,7 +1011,8 @@ rule run_ldpred2:
         train_ids = "results/splits/{sim_method}/rep{rep}/train.txt",
         script    = "scripts/run_ldpred2.R",
     output:
-        betas = "results/pgs_weights/ldpred2/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
+        betas       = "results/pgs_weights/ldpred2/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
+        convergence = "results/pgs_weights/ldpred2/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/convergence.tsv",
     params:
         trait_type = lambda wc: trait_type(wc.trait),
         n_train    = _n_train,
@@ -1180,7 +1181,8 @@ rule run_prscs:
         ref_data   = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg/snpinfo_1kg_hm3",
         hm3_grch38 = lambda wc: "resources/hapmap3_sites_grch38.tsv" if wc.sim_method == "hapnest_public" else [],
     output:
-        betas = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
+        betas       = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/betas.tsv",
+        convergence = "results/pgs_weights/prscs/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/convergence.tsv",
     params:
         ref_dir        = "results/prscs_custom_ref/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/ref_1kg",
         bim_prefix     = "results/plink/{sim_method}/gwas/rep{rep}/merged",
@@ -1333,12 +1335,13 @@ rule score_pgs_variance:
 rule evaluate_pgs:
     """Compute R² (quantitative) or AUC (binary) for the test-set PGS."""
     input:
-        scores     = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores.sscore",
-        var_scores = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
-        pheno      = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
-        test_ids   = "results/splits/{sim_method}/rep{rep}/test.txt",
-        pcs        = "results/pca/{sim_method}/test/rep{rep}/pcs.sscore",
-        script     = "scripts/evaluate_pgs.R",
+        scores      = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores.sscore",
+        var_scores  = "results/pgs/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/scores_var.tsv",
+        convergence = "results/pgs_weights/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/convergence.tsv",
+        pheno       = "results/phenotypes/{sim_method}/rep{rep}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/pheno.pheno",
+        test_ids    = "results/splits/{sim_method}/rep{rep}/test.txt",
+        pcs         = "results/pca/{sim_method}/test/rep{rep}/pcs.sscore",
+        script      = "scripts/evaluate_pgs.R",
     output:
         metrics = "results/evaluation/{method}/{sim_method}/rep{rep}/{panel_ancestry}/n{panel_n}/{trait}/h2_{h2}/pc_{p_causal}/{effect_dist}/metrics.tsv",
     params:
@@ -1349,12 +1352,13 @@ rule evaluate_pgs:
         """
         module load R/4.4.3-gcc-11.2.0-mkl
         Rscript {input.script} \
-            --scores     {input.scores} \
-            --var-scores {input.var_scores} \
-            --pheno      {input.pheno} \
-            --test-ids   {input.test_ids} \
-            --covariates {input.pcs} \
-            --trait-type {params.trait_type} \
-            --out        {output.metrics} \
+            --scores      {input.scores} \
+            --var-scores  {input.var_scores} \
+            --convergence {input.convergence} \
+            --pheno       {input.pheno} \
+            --test-ids    {input.test_ids} \
+            --covariates  {input.pcs} \
+            --trait-type  {params.trait_type} \
+            --out         {output.metrics} \
             2> {log}
         """

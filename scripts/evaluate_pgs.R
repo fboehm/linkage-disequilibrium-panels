@@ -30,6 +30,10 @@ opt_list <- list(
               help = "PLINK2 .eigenvec file of PCs (optional). When provided, incremental metrics (adjusted for PCs) are also reported."),
   make_option("--var-scores",  type = "character", default = NULL,
               help = "TSV with FID IID PGS_VAR (from score_pgs_variance.R). When provided, adds mean/median per-individual PGS posterior variance to the metrics output."),
+  make_option("--convergence", type = "character", default = NULL,
+              help = paste("TSV with metric/value rows (from run_ldpred2.R",
+                           "or run_prscs.py). When provided, those rows are",
+                           "concatenated into the output.")),
   make_option("--out",         type = "character",
               help = "Output TSV of accuracy metrics")
 )
@@ -189,6 +193,24 @@ if (!is.null(opt$`var-scores`)) {
     for (col in setdiff(names(metrics), names(var_rows)))
       var_rows[[col]] <- NA
     metrics <- rbind(metrics, var_rows[, names(metrics)])
+  }
+}
+
+# ── Convergence diagnostics (optional) ────────────────────────────────────────
+
+if (!is.null(opt$convergence)) {
+  cat(sprintf("[evaluate_pgs] Reading convergence: %s\n", opt$convergence))
+  conv_df <- read.table(opt$convergence, header = TRUE, sep = "\t",
+                        na.strings = c("NA", "NaN", ""),
+                        stringsAsFactors = FALSE)
+  if (nrow(conv_df) > 0L &&
+        all(c("metric", "value") %in% names(conv_df))) {
+    conv_rows <- data.frame(metric = conv_df$metric,
+                            value  = as.numeric(conv_df$value),
+                            stringsAsFactors = FALSE)
+    for (col in setdiff(names(metrics), names(conv_rows)))
+      conv_rows[[col]] <- NA
+    metrics <- rbind(metrics, conv_rows[, names(metrics)])
   }
 }
 

@@ -201,10 +201,12 @@ info_snp <- data.frame(
 # ── LD score regression for h2 initialisation ────────────────────────────────
 
 cat("[ldpred2] Running LDSC for h2 initialisation ...\n")
+ldsc_failed <- FALSE
 ldsc_res <- tryCatch(
   snp_ldsc2(corr, info_snp, ncores = opt$ncores),
   error = function(e) {
     message("[ldpred2] snp_ldsc2 failed (", conditionMessage(e), "); using h2_init = 0.1")
+    ldsc_failed <<- TRUE
     list(h2 = 0.1)
   }
 )
@@ -234,10 +236,13 @@ converged <- sapply(multi_auto, function(auto)
   auto$h2_est  > 0.001 &&
   auto$h2_est  < 1.5
 )
+n_chains_total          <- length(converged)
+n_chains_converged_real <- sum(converged)
 cat(sprintf("[ldpred2] %d / %d chains converged\n",
-            sum(converged), length(converged)))
+            n_chains_converged_real, n_chains_total))
 
-if (!any(converged)) converged[] <- TRUE
+chains_used_fallback <- !any(converged)
+if (chains_used_fallback) converged[] <- TRUE
 
 beta_mat <- sapply(multi_auto[converged], `[[`, "beta_est")
 betas_final <- if (is.matrix(beta_mat)) rowMeans(beta_mat) else beta_mat
@@ -262,6 +267,7 @@ if (has_samples) {
               n_samp, sum(converged)))
 } else {
   cat("[ldpred2] WARNING: sample_beta unavailable; falling back to between-chain variance\n")
+  n_samp    <- 0L
   betas_var <- if (is.matrix(beta_mat))
     matrixStats::rowVars(beta_mat)
   else
@@ -296,3 +302,32 @@ write.table(out_df,
             quote     = FALSE)
 
 cat(sprintf("[ldpred2] Wrote %d SNP weights to: %s\n", nrow(out_df), opt$out))
+
+# ── Write convergence diagnostics ─────────────────────────────────────────────
+
+conv_path <- file.path(dirname(opt$out), "convergence.tsv")
+conv_df <- data.frame(
+  metric = c("n_chains_total", "n_chains_converged", "chains_used_fallback",
+             "ldsc_failed", "h2_init", "h2_final", "p_final",
+             "n_snps_total", "n_snps_nonzero", "beta_l2",
+             "n_posterior_samples"),
+  value  = c(n_chains_total,
+             n_chains_converged_real,
+             as.integer(chains_used_fallback),
+             as.integer(ldsc_failed),
+             h2_init,
+             h2_final,
+             p_final,
+             length(betas_final),
+             sum(abs(betas_final) > 1e-12),
+             sqrt(sum(betas_final^2)),
+             n_samp),
+  stringsAsFactors = FALSE
+)
+write.table(conv_df,
+            file      = conv_path,
+            sep       = "\t",
+            row.names = FALSE,
+            col.names = TRUE,
+            quote     = FALSE)
+cat(sprintf("[ldpred2] Wrote convergence diagnostics to: %s\n", conv_path))

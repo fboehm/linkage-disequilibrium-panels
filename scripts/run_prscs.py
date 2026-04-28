@@ -237,13 +237,15 @@ def main():
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     ss = read_sumstats(args.sumstats)
-    print(f"[run_prscs] {len(ss)} SNPs in sumstats after filtering",
+    n_snps_in_sumstats = len(ss)
+    print(f"[run_prscs] {n_snps_in_sumstats} SNPs in sumstats after filtering",
           file=sys.stderr)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         ss, bim_prefix, rsid_to_orig_id = remap_to_rsids(ss, args.ref_dir, args.bim_prefix,
                                                          tmpdir, hm3_grch38=args.hm3_grch38)
-        print(f"[run_prscs] {len(ss)} SNPs remaining after rsID mapping",
+        n_snps_after_rsid_mapping = len(ss)
+        print(f"[run_prscs] {n_snps_after_rsid_mapping} SNPs remaining after rsID mapping",
               file=sys.stderr)
         if len(ss) == 0:
             raise RuntimeError(
@@ -266,6 +268,22 @@ def main():
     out_df = results[["SNP", "A1", "BETA", "BETA_VAR", "CHR", "BP"]]
     out_df.to_csv(args.out, sep="\t", index=False)
     print(f"[run_prscs] Wrote {len(out_df)} SNP weights to {args.out}",
+          file=sys.stderr)
+
+    conv_path = os.path.join(os.path.dirname(args.out), "convergence.tsv")
+    n_snps_nonzero = int((out_df["BETA"].abs() > 1e-12).sum())
+    beta_l2 = float((out_df["BETA"] ** 2).sum() ** 0.5)
+    phi_value = float("nan") if args.phi is None else float(args.phi)
+    conv_df = pd.DataFrame({
+        "metric": ["n_snps_in_sumstats", "n_snps_after_rsid_mapping",
+                   "n_snps_in_output", "n_snps_nonzero", "beta_l2",
+                   "phi_value", "seed"],
+        "value":  [n_snps_in_sumstats, n_snps_after_rsid_mapping,
+                   len(out_df), n_snps_nonzero, beta_l2,
+                   phi_value, args.seed],
+    })
+    conv_df.to_csv(conv_path, sep="\t", index=False)
+    print(f"[run_prscs] Wrote convergence diagnostics to {conv_path}",
           file=sys.stderr)
 
 
