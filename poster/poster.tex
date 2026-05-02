@@ -1,0 +1,107 @@
+% Poster 2.0 (Mike Morrison "betterposter") style poster.
+% Uses Rafael Bailo's betterposter.cls (in this directory).
+%
+% Build:
+%   cd poster && pdflatex poster.tex
+%
+% A0 landscape by default (1189mm x 841mm). For test prints, use:
+%   \documentclass[a1paper]{betterposter}  or  [a2paper]
+
+\documentclass{betterposter}
+
+% Override main-column accent colour to a deep blue more legible than imperial.
+\renewcommand{\maincolumnbackgroundcolor}{theory}    % indigo-blue from class
+% Other options: empirical (green), methods (red), intervention (yellow)
+
+\begin{document}
+
+\betterposter{
+%──────────── MAIN COLUMN ───────────────────────────────────────────────────
+\maincolumn{
+% Big takeaway sentence
+Panel ancestry and size only matter when the trait is
+\textbf{sparse} and \textbf{highly heritable}.
+\\[0.5em]
+{\color{intervention}\fontsizesection
+In infinitesimal regimes,\\ any panel will do.}
+}{
+% Bottom of the main column: evidence figure + caption
+\begin{minipage}[c]{0.66\textwidth}
+\centering
+\includegraphics[height=0.22\paperheight,keepaspectratio]%
+  {../results/summary/plots/09_r2_all_settings_spikeslab.png}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.30\textwidth}
+\textbf{R\textsuperscript{2} vs.\ LD-panel size}, spike-and-slab effects.
+Rows: heritability $h^{2}$.
+Cols: causal-SNP fraction $p_{\text{causal}}$.
+Curves separate (matched AMR best, mismatched EAS worst)
+\textbf{only} in the lower-left tiles --- sparse \emph{and}
+heritable.
+\end{minipage}
+}
+}{
+%──────────── LEFT COLUMN ──────────────────────────────────────────────────
+\title{Does the LD panel matter for PGS?}
+\author{Frederick J. Boehm}
+\institution{South Dakota State University\\frederick.boehm@sdstate.edu\\github.com/fboehm/linkage-disequilibrium-panels}
+
+\section{Background}
+Polygenic scores (PGS) trained on GWAS summary statistics need an
+external linkage-disequilibrium (LD) reference panel. In practice that
+panel is often \textbf{ancestry-mismatched} or \textbf{undersized}
+relative to the GWAS. How much PGS accuracy do we lose?
+
+\section{Simulation design}
+\textbf{Genotypes:} HAPNEST, six superpopulations
+(AFR, AMR, CSA, EAS, EUR, MID) on 22 autosomes.\\[0.4em]
+\textbf{GWAS:} $N_{\text{gwas}}\!=\!100{,}000$;
+held-out target $N\!=\!5{,}000$.\\[0.4em]
+\textbf{Phenotypes:} $h^{2}\!\in\!\{0.05,0.10,0.20,0.40\}$,
+$p_{\text{causal}}\!\in\!\{0.001,0.01,0.05,0.20\}$,
+infinitesimal vs.\ spike-and-slab effects, three trait types.\\[0.4em]
+\textbf{LD panels:} $N\!\in\!\{500;\,5{,}000;\,50{,}000\}$
+$\times$ six panel ancestries.\\[0.4em]
+\textbf{PGS methods:} LDpred2 \& PRS-CS.
+
+\section{Methods compared}
+\includegraphics[width=\textwidth]{../results/summary/plots/04_accuracy_by_ancestry.png}\\[0.3em]
+{\color{gray}\small
+LDpred2 and PRS-CS deliver near-identical accuracy across
+ancestries and traits.}
+}{
+%──────────── RIGHT COLUMN ─────────────────────────────────────────────────
+\section{When the panel matters}
+\textbf{Sparse, high-$h^{2}$ traits}
+($p_{\text{causal}}\!\le\!0.01$, $h^{2}\!\ge\!0.2$):
+matched-ancestry AMR panels reach $\sim$2$\times$ the $R^{2}$ of the
+worst mismatched panel (EAS).
+\\[0.6em]
+\textbf{Panel size} drives most of its gain between
+$N\!=\!500$ and $N\!=\!5{,}000$; the jump to $N\!=\!50{,}000$ adds
+little.
+
+\section{When it doesn't}
+\textbf{Infinitesimal traits} (gaussian effects):
+all six panel ancestries cluster within noise; panel size has
+negligible effect.
+\\[0.6em]
+\textbf{Low-$h^{2}$ traits} ($h^{2}\!\le\!0.10$):
+PGS accuracy is floor-limited; panel choice is a second-order concern.
+
+\section{Implications}
+For most polygenic traits the LD-panel choice is a \emph{minor}
+contributor to PGS accuracy. Investment in matched-ancestry panels
+pays off \textbf{primarily for monogenic-leaning, high-heritability
+traits}.
+
+\section{Code \& data}
+Snakemake pipeline; HAPNEST genotypes; LDpred2 and PRS-CS posteriors.
+All metrics in
+\texttt{results/summary/}\linebreak\texttt{all\_metrics.tsv}.
+\\[0.6em]
+{\small\texttt{github.com/fboehm/}\linebreak
+\texttt{linkage-disequilibrium-panels}}
+}
+
+\end{document}
