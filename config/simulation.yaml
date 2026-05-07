@@ -154,6 +154,8 @@ h2_levels:
   - 0.10
   - 0.20
   - 0.40
+  - 0.60
+  - 0.80
 
 # Proportion of causal SNPs
 #   Note: ignored when effect_dist == gaussian (infinitesimal model uses all SNPs)
