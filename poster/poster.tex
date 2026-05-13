@@ -30,23 +30,23 @@ Panel ancestry and size matter when the trait is
 {\color{intervention}\fontsizesection
 In infinitesimal regimes, any panel will do.}
 }{
-% Bottom of the main column: evidence figures (side by side) + caption
-\begin{minipage}[c]{0.78\textwidth}
-\centering
-\begin{minipage}[c]{0.49\linewidth}
+% Bottom of the main column: evidence figures (side by side) + caption below
+\begin{center}
+\begin{minipage}[c]{0.495\textwidth}
 \centering
 \textbf{LDpred2}\\[0.2em]
 \includegraphics[width=\linewidth,keepaspectratio]%
   {../results/summary/plots/02_r2_vs_panelN_ldpred2_pcSmall.png}
 \end{minipage}\hfill
-\begin{minipage}[c]{0.49\linewidth}
+\begin{minipage}[c]{0.495\textwidth}
 \centering
 \textbf{PRS-CS}\\[0.2em]
 \includegraphics[width=\linewidth,keepaspectratio]%
   {../results/summary/plots/02_r2_vs_panelN_prscs_pcSmall.png}
 \end{minipage}
-\end{minipage}\hfill
-\begin{minipage}[c]{0.20\textwidth}
+\\[0.6em]
+\begin{minipage}{0.95\textwidth}
+\centering
 \textbf{R\textsuperscript{2} vs.\ LD-panel size}, quantitative trait,
 sparse spike-and-slab effects
 ($p_{\text{causal}}\!\in\!\{0.001, 0.01\}$).
@@ -54,6 +54,7 @@ Rows: heritability $h^{2}$.
 Matched AMR (orange) beats mismatched EAS (blue) by
 $\sim$2$\times$ at high $h^{2}$; gap closes as panels grow.
 \end{minipage}
+\end{center}
 }
 }{
 %──────────── LEFT COLUMN ──────────────────────────────────────────────────
