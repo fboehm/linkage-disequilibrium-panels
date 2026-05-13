@@ -23,6 +23,7 @@ dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 d <- read.delim(input, stringsAsFactors = FALSE)
 d <- d[startsWith(d$panel_ancestry, "hapnest"), ]
+d <- d[d$h2 >= 0.2, ]
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ p1 <- ggplot(auc, aes(panel_n, mean_val,
                 width = 0, alpha = 0.4) +
   facet_grid(trait + h2_f ~ effect_dist,
              labeller = label_both) +
-  scale_x_log10(breaks = c(100, 500, 1000, 5000, 15000),
+  scale_x_log10(breaks = c(500, 5000, 50000),
                 labels  = comma) +
   scale_colour_manual(values = ancestry_colours) +
   labs(title  = "AUC (adjusted) vs LD-panel size",
@@ -109,7 +110,7 @@ p2 <- ggplot(r2, aes(panel_n, mean_val,
                 width = 0, alpha = 0.4) +
   facet_grid(h2_f ~ effect_dist,
              labeller = label_both) +
-  scale_x_log10(breaks = c(100, 500, 1000, 5000, 15000),
+  scale_x_log10(breaks = c(500, 5000, 50000),
                 labels  = comma) +
   scale_colour_manual(values = ancestry_colours) +
   labs(title  = "R² (full model) vs LD-panel size — quantitative trait",
@@ -120,6 +121,135 @@ p2 <- ggplot(r2, aes(panel_n, mean_val,
   theme(legend.position = "right")
 
 save_plot(p2, "02_r2_vs_panelN", w = 12, h = 10)
+
+# ── 1b/2b. Per-method versions of plots 1 & 2, columns = effect_dist × p_causal ──
+# gaussian ≡ spikeslab with p_causal = 1 (see simulate_phenotypes.R), so relabel
+# gaussian rows as spikeslab/1.0 to get a single, accurately-labelled column.
+
+d_relab <- d |>
+  mutate(
+    p_causal    = ifelse(effect_dist == "gaussian", 1.0, p_causal),
+    effect_dist = ifelse(effect_dist == "gaussian", "spikeslab", effect_dist)
+  )
+
+auc_m <- d_relab |>
+  filter(metric == "AUC_incremental",
+         trait %in% c("binary_prev10", "binary_prev30")) |>
+  mutate(p_causal_f = factor(p_causal, levels = sort(unique(p_causal)))) |>
+  group_by(method, panel_ancestry, panel_n_f, panel_n, h2_f, trait,
+           effect_dist, p_causal_f) |>
+  summarise(mean_val = mean(value, na.rm = TRUE),
+            se_val   = sd(value, na.rm = TRUE) / sqrt(n()),
+            .groups  = "drop")
+
+for (m in levels(auc_m$method)) {
+  p1m <- ggplot(auc_m |> filter(method == m),
+                aes(panel_n, mean_val, colour = panel_ancestry)) +
+    geom_line() +
+    geom_point(size = 1.5) +
+    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
+                  width = 0, alpha = 0.4) +
+    facet_grid(trait + h2_f ~ effect_dist + p_causal_f,
+               labeller = label_both) +
+    scale_x_log10(breaks = c(500, 5000, 50000),
+                  labels  = comma) +
+    scale_colour_manual(values = ancestry_colours) +
+    labs(title  = sprintf("AUC (adjusted) vs LD-panel size — %s", m),
+         x      = "Panel N (log scale)",
+         y      = "Mean AUC (± 1 SE)",
+         colour = "Panel ancestry") +
+    theme(legend.position = "right",
+          strip.text       = element_text(size = 7))
+
+  save_plot(p1m, sprintf("01_auc_vs_panelN_%s", m), w = 18, h = 18)
+}
+
+r2_m <- d_relab |>
+  filter(metric == "R2_full", trait == "quantitative") |>
+  mutate(p_causal_f = factor(p_causal, levels = sort(unique(p_causal)))) |>
+  group_by(method, panel_ancestry, panel_n_f, panel_n, h2_f,
+           effect_dist, p_causal_f) |>
+  summarise(mean_val = mean(value, na.rm = TRUE),
+            se_val   = sd(value, na.rm = TRUE) / sqrt(n()),
+            .groups  = "drop")
+
+for (m in levels(r2_m$method)) {
+  p2m <- ggplot(r2_m |> filter(method == m),
+                aes(panel_n, mean_val, colour = panel_ancestry)) +
+    geom_line() +
+    geom_point(size = 1.5) +
+    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
+                  width = 0, alpha = 0.4) +
+    facet_grid(h2_f ~ effect_dist + p_causal_f,
+               labeller = label_both) +
+    scale_x_log10(breaks = c(500, 5000, 50000),
+                  labels  = comma) +
+    scale_colour_manual(values = ancestry_colours) +
+    labs(title  = sprintf("R² vs LD-panel size — quantitative, %s", m),
+         x      = "Panel N (log scale)",
+         y      = "Mean R² (± 1 SE)",
+         colour = "Panel ancestry") +
+    theme(legend.position = "right",
+          strip.text       = element_text(size = 7))
+
+  save_plot(p2m, sprintf("02_r2_vs_panelN_%s", m), w = 16, h = 12)
+}
+
+# ── 1c/2c. Same as 1b/2b, restricted to p_causal in {0.001, 0.01} ──
+
+pc_keep <- c(0.001, 0.01)
+
+auc_traits <- c(prev10 = "binary_prev10", prev30 = "binary_prev30")
+for (m in levels(auc_m$method)) {
+  for (t_lbl in names(auc_traits)) {
+    t <- auc_traits[[t_lbl]]
+    p1ms <- ggplot(auc_m |> filter(method == m, trait == t,
+                                   p_causal_f %in% pc_keep),
+                   aes(panel_n, mean_val, colour = panel_ancestry)) +
+      geom_line() +
+      geom_point(size = 1.5) +
+      geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
+                    width = 0, alpha = 0.4) +
+      facet_grid(h2_f ~ effect_dist + p_causal_f,
+                 labeller = label_both) +
+      scale_x_log10(breaks = c(500, 5000, 50000),
+                    labels  = comma) +
+      scale_colour_manual(values = ancestry_colours) +
+      labs(title  = sprintf("AUC (adjusted) vs LD-panel size — %s, %s",
+                            m, t),
+           x      = "Panel N (log scale)",
+           y      = "Mean AUC (± 1 SE)",
+           colour = "Panel ancestry") +
+      theme(legend.position = "right",
+            strip.text       = element_text(size = 7))
+
+    save_plot(p1ms,
+              sprintf("01_auc_vs_panelN_%s_%s_pcSmall", m, t_lbl),
+              w = 12, h = 12)
+  }
+}
+
+for (m in levels(r2_m$method)) {
+  p2ms <- ggplot(r2_m |> filter(method == m, p_causal_f %in% pc_keep),
+                 aes(panel_n, mean_val, colour = panel_ancestry)) +
+    geom_line() +
+    geom_point(size = 1.5) +
+    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
+                  width = 0, alpha = 0.4) +
+    facet_grid(h2_f ~ effect_dist + p_causal_f,
+               labeller = label_both) +
+    scale_x_log10(breaks = c(500, 5000, 50000),
+                  labels  = comma) +
+    scale_colour_manual(values = ancestry_colours) +
+    labs(title  = sprintf("R² vs LD-panel size — quantitative, %s", m),
+         x      = "Panel N (log scale)",
+         y      = "Mean R² (± 1 SE)",
+         colour = "Panel ancestry") +
+    theme(legend.position = "right",
+          strip.text       = element_text(size = 7))
+
+  save_plot(p2ms, sprintf("02_r2_vs_panelN_%s_pcSmall", m), w = 12, h = 12)
+}
 
 # ── 3. Method comparison: ldpred2 vs prscs (scatter, one point per scenario) ──
 

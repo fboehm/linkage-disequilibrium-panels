@@ -6,4 +6,6 @@
 *.toc
 *.vrb
 preview.png
+*.blg
+*.bbl
 

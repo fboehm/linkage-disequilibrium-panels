@@ -13,31 +13,46 @@
 \renewcommand{\maincolumnbackgroundcolor}{theory}    % indigo-blue from class
 % Other options: empirical (green), methods (red), intervention (yellow)
 
+\usepackage[colorlinks=true,
+            urlcolor=blue!60!black,
+            citecolor=blue!60!black,
+            linkcolor=blue!60!black]{hyperref}
+
 \begin{document}
 
 \betterposter{
 %──────────── MAIN COLUMN ───────────────────────────────────────────────────
 \maincolumn{
 % Big takeaway sentence
-Panel ancestry and size only matter when the trait is
+Panel ancestry and size matter when the trait is
 \textbf{sparse} and \textbf{highly heritable}.
 \\[0.5em]
 {\color{intervention}\fontsizesection
 In infinitesimal regimes, any panel will do.}
 }{
-% Bottom of the main column: evidence figure + caption
-\begin{minipage}[c]{0.66\textwidth}
+% Bottom of the main column: evidence figures (side by side) + caption
+\begin{minipage}[c]{0.78\textwidth}
 \centering
-\includegraphics[height=0.22\paperheight,keepaspectratio]%
-  {../results/summary/plots/09_r2_all_settings_spikeslab.png}
+\begin{minipage}[c]{0.49\linewidth}
+\centering
+\textbf{LDpred2}\\[0.2em]
+\includegraphics[width=\linewidth,keepaspectratio]%
+  {../results/summary/plots/02_r2_vs_panelN_ldpred2_pcSmall.png}
 \end{minipage}\hfill
-\begin{minipage}[c]{0.30\textwidth}
-\textbf{R\textsuperscript{2} vs.\ LD-panel size}, spike-and-slab effects.
+\begin{minipage}[c]{0.49\linewidth}
+\centering
+\textbf{PRS-CS}\\[0.2em]
+\includegraphics[width=\linewidth,keepaspectratio]%
+  {../results/summary/plots/02_r2_vs_panelN_prscs_pcSmall.png}
+\end{minipage}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.20\textwidth}
+\textbf{R\textsuperscript{2} vs.\ LD-panel size}, quantitative trait,
+sparse spike-and-slab effects
+($p_{\text{causal}}\!\in\!\{0.001, 0.01\}$).
 Rows: heritability $h^{2}$.
-Cols: causal-SNP fraction $p_{\text{causal}}$.
-Curves separate (matched AMR best, mismatched EAS worst)
-\textbf{only} in the lower-left tiles --- sparse \emph{and}
-heritable.
+Matched AMR (orange) beats mismatched EAS (blue) by
+$\sim$2$\times$ at high $h^{2}$; gap closes as panels grow.
 \end{minipage}
 }
 }{
@@ -53,22 +68,11 @@ panel is often \textbf{ancestry-mismatched} or \textbf{undersized}
 relative to the GWAS. How much PGS accuracy do we lose?
 
 \section{Simulation design}
-\textbf{Genotypes:} HAPNEST, six superpopulations
-(AFR, AMR, CSA, EAS, EUR, MID) on 22 autosomes.\\[0.4em]
-\textbf{GWAS:} $N_{\text{gwas}}\!=\!100{,}000$;
-held-out target $N\!=\!5{,}000$.\\[0.4em]
-\textbf{Phenotypes:} $h^{2}\!\in\!\{0.05,0.10,0.20,0.40\}$,
-$p_{\text{causal}}\!\in\!\{0.001,0.01,0.05,0.20\}$,
-infinitesimal vs.\ spike-and-slab effects, three trait types.\\[0.4em]
-\textbf{LD panels:} $N\!\in\!\{500;\,5{,}000;\,50{,}000\}$
-$\times$ six panel ancestries.\\[0.4em]
-\textbf{PGS methods:} LDpred2 \& PRS-CS.
+\includegraphics[width=\textwidth]{../results/summary/plots/00_study_design.pdf}
 
 \section{Methods compared}
-\includegraphics[width=\textwidth]{../results/summary/plots/04_accuracy_by_ancestry.png}\\[0.3em]
-{\color{gray}\small
-LDpred2 and PRS-CS deliver near-identical accuracy across
-ancestries and traits.}
+\includegraphics[width=\textwidth]{../results/summary/plots/08a_r2_amr.png}\\[0.3em]
+\textbf{LDpred2} and \textbf{PRS-CS} produce similar results.
 }{
 %──────────── RIGHT COLUMN ─────────────────────────────────────────────────
 \section{When the panel matters}
@@ -95,13 +99,27 @@ contributor to PGS accuracy. Investment in matched-ancestry panels
 pays off \textbf{primarily for sparse, high-heritability
 traits}.
 
-\section{Code \& data}
-Snakemake pipeline; HAPNEST genotypes; LDpred2 and PRS-CS posteriors.
-All metrics in
-\texttt{results/summary/}\linebreak\texttt{all\_metrics.tsv}.
-\\[0.6em]
-{\small\texttt{github.com/fboehm/}\linebreak
-\texttt{linkage-disequilibrium-panels}}
+
+\section{References}
+\nocite{*}
+\begingroup
+\renewcommand{\section}[2]{}%
+\footnotesize
+\bibliographystyle{unsrt}
+\bibliography{references2}
+\endgroup
+
+\vspace{0.6em}
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\includegraphics[width=0.85\linewidth]{qr_github.png}\\[0.2em]
+\textbf{GitHub repository}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\includegraphics[width=0.85\linewidth]{qr_linkedin.png}\\[0.2em]
+\textbf{LinkedIn}
+\end{minipage}
 }
 
 \end{document}
