@@ -165,7 +165,7 @@ for (m in levels(auc_m$method)) {
 }
 
 r2_m <- d_relab |>
-  filter(metric == "R2_full", trait == "quantitative") |>
+  filter(metric == "R2_incremental", trait == "quantitative") |>
   mutate(p_causal_f = factor(p_causal, levels = sort(unique(p_causal)))) |>
   group_by(method, panel_ancestry, panel_n_f, panel_n, h2_f,
            effect_dist, p_causal_f) |>
@@ -178,16 +178,14 @@ for (m in levels(r2_m$method)) {
                 aes(panel_n, mean_val, colour = panel_ancestry)) +
     geom_line() +
     geom_point(size = 1.5) +
-    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
-                  width = 0, alpha = 0.4) +
     facet_grid(h2_f ~ effect_dist + p_causal_f,
                labeller = label_both) +
     scale_x_log10(breaks = c(500, 5000, 50000),
                   labels  = comma) +
     scale_colour_manual(values = ancestry_colours) +
-    labs(title  = sprintf("R² vs LD-panel size — quantitative, %s", m),
+    labs(title  = sprintf("Incremental R² vs LD-panel size — quantitative, %s", m),
          x      = "Panel N (log scale)",
-         y      = "Mean R² (± 1 SE)",
+         y      = "Incremental R²",
          colour = "Panel ancestry") +
     theme(legend.position = "right",
           strip.text       = element_text(size = 7))
@@ -234,16 +232,14 @@ for (m in levels(r2_m$method)) {
                  aes(panel_n, mean_val, colour = panel_ancestry)) +
     geom_line() +
     geom_point(size = 1.5) +
-    geom_errorbar(aes(ymin = mean_val - se_val, ymax = mean_val + se_val),
-                  width = 0, alpha = 0.4) +
     facet_grid(h2_f ~ effect_dist + p_causal_f,
                labeller = label_both) +
     scale_x_log10(breaks = c(500, 5000, 50000),
                   labels  = comma) +
     scale_colour_manual(values = ancestry_colours) +
-    labs(title  = sprintf("R² vs LD-panel size — quantitative, %s", m),
+    labs(title  = sprintf("Incremental R² vs LD-panel size — quantitative, %s", m),
          x      = "Panel N (log scale)",
-         y      = "Mean R² (± 1 SE)",
+         y      = "Incremental R²",
          colour = "Panel ancestry") +
     theme(legend.position = "right",
           strip.text       = element_text(size = 7))
