@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 540"
+     font-family="Lato, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="550" y="32" text-anchor="middle" font-size="22"
+        font-weight="700" fill="#111827">
+    HAPNEST simulated subjects
+  </text>
+  <line x1="60" y1="48" x2="1040" y2="48" stroke="#9ca3af" stroke-width="1"/>
+
+  <!-- Column headers above the AMR split -->
+  <text x="460" y="78" text-anchor="middle" font-size="13"
+        font-style="italic" fill="#6b7280">GWAS</text>
+  <text x="745" y="78" text-anchor="middle" font-size="13"
+        font-style="italic" fill="#6b7280">Test</text>
+  <text x="940" y="78" text-anchor="middle" font-size="13"
+        font-style="italic" fill="#6b7280">LD reference panel pool</text>
+
+  <!-- ============ ROW 1: African ============ -->
+  <text x="190" y="115" text-anchor="end" font-size="16"
+        font-weight="600" fill="#111827">African</text>
+  <g filter="url(#shadow)">
+    <rect x="210" y="92" width="830" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="625" y="123" text-anchor="middle" font-size="15"
+          fill="#374151">LD reference panel pool</text>
+  </g>
+
+  <!-- ============ ROW 2: Admixed American (★ highlighted) ============ -->
+  <text x="190" y="183" text-anchor="end" font-size="16"
+        font-weight="700" fill="#1e3a8a">Admixed American ★</text>
+  <g filter="url(#shadow)">
+    <!-- GWAS cohort -->
+    <rect x="210" y="160" width="500" height="48" rx="8"
+          fill="#dbeafe" stroke="#1e3a8a" stroke-width="1.8"/>
+    <text x="460" y="191" text-anchor="middle" font-size="15"
+          font-weight="700" fill="#1e3a8a">GWAS cohort  ★</text>
+
+    <!-- Test cohort -->
+    <rect x="720" y="160" width="70" height="48" rx="8"
+          fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+    <text x="755" y="191" text-anchor="middle" font-size="13"
+          font-weight="600" fill="#7c2d12">Test</text>
+
+    <!-- AMR LD panel pool -->
+    <rect x="800" y="160" width="240" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="920" y="191" text-anchor="middle" font-size="14"
+          fill="#374151">AMR LD panel pool</text>
+  </g>
+
+  <!-- ============ ROW 3: East Asian ============ -->
+  <text x="190" y="251" text-anchor="end" font-size="16"
+        font-weight="600" fill="#111827">East Asian</text>
+  <g filter="url(#shadow)">
+    <rect x="210" y="228" width="830" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="625" y="259" text-anchor="middle" font-size="15"
+          fill="#374151">LD reference panel pool</text>
+  </g>
+
+  <!-- ============ ROW 4: European ============ -->
+  <text x="190" y="319" text-anchor="end" font-size="16"
+        font-weight="600" fill="#111827">European</text>
+  <g filter="url(#shadow)">
+    <rect x="210" y="296" width="830" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="625" y="327" text-anchor="middle" font-size="15"
+          fill="#374151">LD reference panel pool</text>
+  </g>
+
+  <!-- ============ ROW 5: South Asian ============ -->
+  <text x="190" y="387" text-anchor="end" font-size="16"
+        font-weight="600" fill="#111827">South Asian</text>
+  <g filter="url(#shadow)">
+    <rect x="210" y="364" width="830" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="625" y="395" text-anchor="middle" font-size="15"
+          fill="#374151">LD reference panel pool</text>
+  </g>
+
+  <!-- ============ ROW 6: Middle Eastern ============ -->
+  <text x="190" y="455" text-anchor="end" font-size="16"
+        font-weight="600" fill="#111827">Middle Eastern</text>
+  <g filter="url(#shadow)">
+    <rect x="210" y="432" width="830" height="48" rx="8"
+          fill="#f3f4f6" stroke="#6b7280" stroke-width="1.2"/>
+    <text x="625" y="463" text-anchor="middle" font-size="15"
+          fill="#374151">LD reference panel pool</text>
+  </g>
+
+  <!-- Bottom annotations -->
+  <text x="60" y="505" font-size="14" fill="#1e3a8a">
+    <tspan font-weight="700">★</tspan>
+    <tspan>  Only AMR subjects are used to run the GWAS (and to evaluate PGS on a held-out AMR test cohort).</tspan>
+  </text>
+  <text x="60" y="528" font-size="14" fill="#374151">
+    All six ancestries contribute candidates to the bank of LD reference panels (subsampled later to N = 500 / 5,000 / 50,000).
+  </text>
+</svg>

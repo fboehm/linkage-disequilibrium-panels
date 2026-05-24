@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+  <info>
+    <title>All Authors (custom)</title>
+    <id>https://example.com/all-authors</id>
+    <link href="https://example.com/all-authors" rel="self"/>
+    <author><name>Custom</name></author>
+    <category citation-format="author-date"/>
+    <summary>Author-date style that always prints every author (no et-al truncation).</summary>
+    <updated>2026-01-01T00:00:00+00:00</updated>
+  </info>
+
+  <macro name="author-list">
+    <names variable="author">
+      <name and="text" delimiter=", " initialize-with=". "/>
+      <substitute>
+        <names variable="editor"/>
+        <text variable="title"/>
+      </substitute>
+    </names>
+  </macro>
+
+  <macro name="year">
+    <date variable="issued">
+      <date-part name="year"/>
+    </date>
+  </macro>
+
+  <citation et-al-min="1000" et-al-use-first="1000" disambiguate-add-year-suffix="true">
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <group delimiter=" ">
+        <names variable="author">
+          <name form="short" and="text" delimiter=", "/>
+          <substitute>
+            <names variable="editor"/>
+            <text variable="title" form="short"/>
+          </substitute>
+        </names>
+        <text macro="year"/>
+      </group>
+    </layout>
+  </citation>
+
+  <bibliography et-al-min="1000" et-al-use-first="1000" entry-spacing="1" line-spacing="1" hanging-indent="true">
+    <layout>
+      <group delimiter=". " suffix=".">
+        <text macro="author-list"/>
+        <text macro="year"/>
+        <text variable="title"/>
+        <group delimiter=" ">
+          <text variable="container-title" font-style="italic"/>
+          <group delimiter=":">
+            <group delimiter="(">
+              <text variable="volume"/>
+              <text variable="issue" suffix=")"/>
+            </group>
+            <text variable="page"/>
+          </group>
+        </group>
+        <text variable="publisher"/>
+        <text variable="URL" prefix="URL: "/>
+        <text variable="DOI" prefix="doi:"/>
+      </group>
+    </layout>
+  </bibliography>
+</style>
