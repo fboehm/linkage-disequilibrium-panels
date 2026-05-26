@@ -41,7 +41,7 @@ Today: a simulation study across **ancestry**, **panel size**, **heritability**,
 
 ---
 
-## Polygenic scores in one slide
+## Polygenic scores  
 
 A polygenic score (PGS) is a per-person sum of GWAS effects:
 
@@ -231,11 +231,10 @@ Similar qualitative story under a **different prior** — supports a real effect
 
 ---
 
-## Result 2 — Comparing incremental $h^2$ across heritability values
+## Result 2 — Comparing incremental $R^2$ across heritability values
 
 ![](../results/summary/plots/11_quant_r2_vs_panelN_by_h2_AMR_ldpred2_spikeslab.png){fig-align="center" width="72%"}
 
-At **low $h^{2}$** all curves collapse — the trait is hard regardless of panel. As $h^{2}$ grows, the gap between panels widens.
 
 ---
 
@@ -250,8 +249,8 @@ AUC tells the same story as $R^{2}$: ancestry matters most when **heritability i
 ## When the panel matters
 
 ::: {.incremental}
-- **Sparse architectures** ($p_{\text{causal}} \le 0.01$).
-- **High heritability** ($h^{2} \gtrsim 0.4$).
+- **Sparse architectures**  
+- **High heritability**   
 - **Small panels** ($N \le 5{,}000$) — most of the size benefit is gained by $N \approx 5{,}000$.
 - **Mismatched ancestry** — typically the EAS panel for an AMR target.
 :::
@@ -261,9 +260,9 @@ AUC tells the same story as $R^{2}$: ancestry matters most when **heritability i
 ## When the panel doesn't matter
 
 ::: {.incremental}
-- **Infinitesimal / Gaussian** effects — all six ancestries land in the same band.
-- **Low heritability** ($h^{2} \le 0.2$) — accuracy is floor-limited; panel choice is a second-order issue.
-- **Very large panels** ($N = 50{,}000$) — ancestry differences are largely absorbed.
+- **Infinitesimal / Gaussian** effects — all six ancestries land in the same band.  
+- **Low heritability** — accuracy is floor-limited; panel choice is a second-order issue.  
+- **Very large panels**    
 :::
 
 ---
@@ -278,9 +277,8 @@ AUC tells the same story as $R^{2}$: ancestry matters most when **heritability i
 
 ## Limitations
 
-- Single simulator (HAPNEST) — real LD has structure we may not reproduce.
-- We ignored **selection** and pleiotropy.
-- "Ancestry" is treated as discrete superpopulation labels; admixed individuals deserve a finer-grained treatment.
+- Single simulator (HAPNEST) — real LD has structure we may not reproduce.  
+- "Ancestry" is treated as discrete superpopulation labels; admixed individuals deserve a finer-grained treatment.  
 
 ---
 
